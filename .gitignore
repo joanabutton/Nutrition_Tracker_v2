@@ -9,3 +9,6 @@ coverage
 *.tsbuildinfo
 .vercel
 .DS_Store
+
+# Local nutrition source files used for imports. Do not commit downloaded datasets.
+data/
