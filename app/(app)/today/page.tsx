@@ -3,11 +3,13 @@ import { redirect } from "next/navigation";
 import { ConversationalFoodLogForm } from "@/components/conversational-food-log-form";
 import { FoodLogCard } from "@/components/food-log-card";
 import { NutritionCylinder } from "@/components/nutrition-cylinder";
+import { SavedMealCard } from "@/components/saved-meal-card";
 import { UnifiedFoodLogForm } from "@/components/unified-food-log-form";
 import { getTodayDashboard } from "@/lib/dashboard";
 import { getFoods } from "@/lib/foods";
 import { searchExternalFoods } from "@/lib/nutrition/external-foods";
 import { searchReferenceFoods } from "@/lib/reference-foods";
+import { getSavedMeals } from "@/lib/saved-meals";
 
 type TodayPageProps = {
   searchParams: Promise<{
@@ -30,9 +32,10 @@ const mealSections: Array<{ type: MealType; label: string }> = [
 export default async function TodayPage({ searchParams }: TodayPageProps) {
   const { foodQuery = "", message } = await searchParams;
   const trimmedFoodQuery = foodQuery.trim();
-  const [dashboard, savedFoods, referenceResult, externalResult] = await Promise.all([
+  const [dashboard, savedFoods, savedMeals, referenceResult, externalResult] = await Promise.all([
     getTodayDashboard(),
     getFoods({ limit: trimmedFoodQuery ? 20 : 8, query: trimmedFoodQuery }),
+    getSavedMeals({ limit: 4 }),
     trimmedFoodQuery
       ? searchReferenceFoods(trimmedFoodQuery)
       : Promise.resolve({ foods: [], warnings: [] }),
@@ -173,6 +176,17 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
           </div>
         </details>
       </section>
+
+      {savedMeals.length > 0 ? (
+        <section className="grid gap-3 rounded-lg bg-white/70 p-4 shadow-soft ring-1 ring-white/70">
+          <SectionHeader title="Saved meals" count={savedMeals.length} />
+          <div className="grid gap-2">
+            {savedMeals.map((meal) => (
+              <SavedMealCard key={meal.id} meal={meal} />
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <section className="grid gap-3 rounded-lg bg-white/70 p-4 shadow-soft ring-1 ring-white/70">
         <SectionHeader title="Meals" count={dashboard.foodLogs.length} />

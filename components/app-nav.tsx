@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 const links = [
   { href: "/today", label: "Today" },
   { href: "/foods", label: "Foods" },
+  { href: "/meals", label: "Meals" },
   { href: "/settings", label: "Settings" }
 ];
 
@@ -13,7 +14,7 @@ export function AppNav() {
   const pathname = usePathname();
 
   return (
-    <div className="grid grid-cols-3 gap-2 text-center text-xs font-medium text-ink/60">
+    <div className="grid grid-cols-4 gap-2 text-center text-xs font-medium text-ink/60">
       {links.map((link) => (
         <Link
           className={[
