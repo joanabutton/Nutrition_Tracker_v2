@@ -4,6 +4,7 @@ import { ConversationalFoodLogForm } from "@/components/conversational-food-log-
 import { ExerciseLogCard } from "@/components/exercise-log-card";
 import { ExerciseLogForm } from "@/components/exercise-log-form";
 import { FoodLogCard } from "@/components/food-log-card";
+import { JumpLink } from "@/components/jump-link";
 import { NutritionCylinder } from "@/components/nutrition-cylinder";
 import { SavedMealCard } from "@/components/saved-meal-card";
 import { UnifiedFoodLogForm } from "@/components/unified-food-log-form";
@@ -72,18 +73,20 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
         </div>
 
         <div className="mt-4 grid grid-cols-2 gap-3">
-          <a
+          <JumpLink
             className="grid min-h-12 place-items-center rounded-md bg-white/90 px-3 text-sm font-semibold text-ink shadow-sm"
             href="/today#log-food"
+            targetId="log-food"
           >
             + Add food
-          </a>
-          <a
+          </JumpLink>
+          <JumpLink
             className="grid min-h-12 place-items-center rounded-md border border-white/70 bg-butter/80 px-3 text-sm font-semibold text-ink shadow-sm"
             href="/today#log-exercise"
+            targetId="log-exercise"
           >
             + Add exercise
-          </a>
+          </JumpLink>
         </div>
       </div>
 
