@@ -1,12 +1,21 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  exerciseOptions,
   estimateExerciseCalories,
   parseExerciseText,
   parseRunningExerciseText
 } from "@/lib/nutrition/exercise";
 
 describe("exercise logging", () => {
+  it("only exposes distance for running estimates", () => {
+    expect(
+      exerciseOptions
+        .filter((option) => option.supportsDistance)
+        .map((option) => option.type)
+    ).toEqual(["running"]);
+  });
+
   it("parses a running description with distance and duration", () => {
     expect(parseRunningExerciseText("Ran 4.2 km in 30 minutes")).toEqual({
       type: "running",

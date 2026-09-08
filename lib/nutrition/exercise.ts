@@ -47,21 +47,21 @@ export const exerciseOptions: Array<{
     label: "Walking",
     met: 3.5,
     aliases: ["walk", "walked", "walking", "caminhada", "andei"],
-    supportsDistance: true
+    supportsDistance: false
   },
   {
     type: "cycling",
     label: "Cycling",
     met: 6.8,
     aliases: ["cycle", "cycled", "cycling", "bike", "biked", "bicicleta"],
-    supportsDistance: true
+    supportsDistance: false
   },
   {
     type: "swimming",
     label: "Swimming",
     met: 6,
     aliases: ["swim", "swam", "swimming", "natacao", "nadei"],
-    supportsDistance: true
+    supportsDistance: false
   },
   {
     type: "strength_training",
