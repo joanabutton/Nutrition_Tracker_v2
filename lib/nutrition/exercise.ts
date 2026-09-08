@@ -33,18 +33,56 @@ export const exerciseOptions: Array<{
   label: string;
   met: number;
   aliases: string[];
+  supportsDistance: boolean;
 }> = [
-  { type: "running", label: "Running", met: 8.3, aliases: ["run", "ran", "running", "corrida", "corri", "correr"] },
-  { type: "walking", label: "Walking", met: 3.5, aliases: ["walk", "walked", "walking", "caminhada", "andei"] },
-  { type: "cycling", label: "Cycling", met: 6.8, aliases: ["cycle", "cycled", "cycling", "bike", "biked", "bicicleta"] },
-  { type: "swimming", label: "Swimming", met: 6, aliases: ["swim", "swam", "swimming", "natacao", "nadei"] },
-  { type: "strength_training", label: "Strength training", met: 3.5, aliases: ["weights", "strength", "gym", "musculacao"] },
-  { type: "yoga_pilates", label: "Yoga / Pilates", met: 2.5, aliases: ["yoga", "pilates"] },
+  {
+    type: "running",
+    label: "Running",
+    met: 8.3,
+    aliases: ["run", "ran", "running", "corrida", "corri", "correr"],
+    supportsDistance: true
+  },
+  {
+    type: "walking",
+    label: "Walking",
+    met: 3.5,
+    aliases: ["walk", "walked", "walking", "caminhada", "andei"],
+    supportsDistance: true
+  },
+  {
+    type: "cycling",
+    label: "Cycling",
+    met: 6.8,
+    aliases: ["cycle", "cycled", "cycling", "bike", "biked", "bicicleta"],
+    supportsDistance: true
+  },
+  {
+    type: "swimming",
+    label: "Swimming",
+    met: 6,
+    aliases: ["swim", "swam", "swimming", "natacao", "nadei"],
+    supportsDistance: true
+  },
+  {
+    type: "strength_training",
+    label: "Strength training",
+    met: 3.5,
+    aliases: ["weights", "strength", "gym", "musculacao"],
+    supportsDistance: false
+  },
+  {
+    type: "yoga_pilates",
+    label: "Yoga / Pilates",
+    met: 2.5,
+    aliases: ["yoga", "pilates"],
+    supportsDistance: false
+  },
   {
     type: "housework_childcare",
     label: "Housework / childcare",
     met: 3,
-    aliases: ["housework", "cleaning", "childcare", "house chores", "limpeza", "tarefas", "criancas"]
+    aliases: ["housework", "cleaning", "childcare", "house chores", "limpeza", "tarefas", "criancas"],
+    supportsDistance: false
   }
 ];
 
@@ -82,6 +120,8 @@ export function estimateExerciseCalories(input: ExerciseEstimateInput): Exercise
     throw new Error("A current profile weight is required to estimate exercise calories.");
   }
 
+  const option = getExerciseOption(input.type);
+
   if (input.type === "running" && input.distanceKm !== null) {
     return {
       caloriesEstimated: Math.round(input.weightKg * input.distanceKm * runningKcalPerKgKm),
@@ -90,8 +130,6 @@ export function estimateExerciseCalories(input: ExerciseEstimateInput): Exercise
   }
 
   if (input.durationMinutes !== null) {
-    const option = getExerciseOption(input.type);
-
     return {
       caloriesEstimated: Math.round(input.weightKg * (input.durationMinutes / 60) * option.met),
       estimationMethod: `${input.type}_met_${String(option.met).replace(".", "_")}`

@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import {
   estimateExerciseCalories,
+  getExerciseOption,
   parseExerciseText,
   readExerciseType
 } from "@/lib/nutrition/exercise";
@@ -57,7 +58,7 @@ export async function logManualExercise(formData: FormData) {
 
   try {
     type = readExerciseType(readRequiredString(formData, "type"));
-    distanceKm = readOptionalPositiveNumber(formData, "distanceKm");
+    distanceKm = readExerciseDistance(formData, type);
     durationMinutes = readOptionalPositiveNumber(formData, "durationMinutes");
   } catch (error) {
     redirectWithMessage("/today#log-exercise", getErrorMessage(error));
@@ -103,7 +104,7 @@ export async function updateExerciseLog(formData: FormData) {
   try {
     logId = readRequiredString(formData, "logId");
     type = readExerciseType(readRequiredString(formData, "type"));
-    distanceKm = readOptionalPositiveNumber(formData, "distanceKm");
+    distanceKm = readExerciseDistance(formData, type);
     durationMinutes = readOptionalPositiveNumber(formData, "durationMinutes");
   } catch (error) {
     redirectWithMessage("/today#log-exercise", getErrorMessage(error));
@@ -251,6 +252,14 @@ function readOptionalPositiveNumber(formData: FormData, key: string) {
   }
 
   return value;
+}
+
+function readExerciseDistance(formData: FormData, type: ReturnType<typeof readExerciseType>) {
+  if (!getExerciseOption(type).supportsDistance) {
+    return null;
+  }
+
+  return readOptionalPositiveNumber(formData, "distanceKm");
 }
 
 function getErrorMessage(error: unknown) {

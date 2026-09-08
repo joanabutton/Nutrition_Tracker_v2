@@ -1,5 +1,9 @@
+"use client";
+
+import { useState } from "react";
+
 import { deleteExerciseLog, updateExerciseLog } from "@/app/(app)/exercise-actions";
-import { exerciseOptions, readExerciseType } from "@/lib/nutrition/exercise";
+import { exerciseOptions, readExerciseType, type ExerciseType } from "@/lib/nutrition/exercise";
 
 type ExerciseLogCardProps = {
   log: {
@@ -16,7 +20,8 @@ type ExerciseLogCardProps = {
 export function ExerciseLogCard({ log }: ExerciseLogCardProps) {
   const distanceKm = log.distance_km === null ? null : Number(log.distance_km);
   const durationMinutes = log.duration_minutes === null ? null : Number(log.duration_minutes);
-  const type = readExerciseType(log.type);
+  const initialType = readExerciseType(log.type);
+  const [type, setType] = useState<ExerciseType>(initialType);
   const exercise = exerciseOptions.find((option) => option.type === type);
 
   return (
@@ -26,7 +31,7 @@ export function ExerciseLogCard({ log }: ExerciseLogCardProps) {
           <div>
             <p className="text-sm font-semibold text-ink">{exercise?.label ?? log.type}</p>
             <p className="mt-1 text-sm text-ink/60">
-              {formatExerciseDetail(distanceKm, durationMinutes)}
+              {formatExerciseDetail(distanceKm, durationMinutes, Boolean(exercise?.supportsDistance))}
             </p>
           </div>
           <p className="text-sm font-semibold text-ink">
@@ -47,7 +52,13 @@ export function ExerciseLogCard({ log }: ExerciseLogCardProps) {
           <input name="logId" type="hidden" value={log.id} />
           <label className="grid gap-2 text-sm font-semibold text-ink">
             Type
-            <select className="field" defaultValue={type} name="type" required>
+            <select
+              className="field"
+              name="type"
+              onChange={(event) => setType(event.target.value as ExerciseType)}
+              required
+              value={type}
+            >
               {exerciseOptions.map((option) => (
                 <option key={option.type} value={option.type}>
                   {option.label}
@@ -55,21 +66,23 @@ export function ExerciseLogCard({ log }: ExerciseLogCardProps) {
               ))}
             </select>
           </label>
-          <div className="grid grid-cols-2 gap-2">
-            <label className="grid gap-2 text-sm font-semibold text-ink">
-              Distance
-              <div className="grid grid-cols-[1fr_auto] items-center gap-2 rounded-md border border-ink/10 bg-white px-3">
-                <input
-                  className="min-h-11 w-full bg-transparent py-2 text-sm font-semibold text-ink outline-none"
-                  defaultValue={distanceKm ?? ""}
-                  min="0.01"
-                  name="distanceKm"
-                  step="0.01"
-                  type="number"
-                />
-                <span className="text-sm font-medium text-ink/55">km</span>
-              </div>
-            </label>
+          <div className={exercise?.supportsDistance ? "grid grid-cols-2 gap-2" : "grid gap-2"}>
+            {exercise?.supportsDistance ? (
+              <label className="grid gap-2 text-sm font-semibold text-ink">
+                Distance
+                <div className="grid grid-cols-[1fr_auto] items-center gap-2 rounded-md border border-ink/10 bg-white px-3">
+                  <input
+                    className="min-h-11 w-full bg-transparent py-2 text-sm font-semibold text-ink outline-none"
+                    defaultValue={distanceKm ?? ""}
+                    min="0.01"
+                    name="distanceKm"
+                    step="0.01"
+                    type="number"
+                  />
+                  <span className="text-sm font-medium text-ink/55">km</span>
+                </div>
+              </label>
+            ) : null}
             <label className="grid gap-2 text-sm font-semibold text-ink">
               Duration
               <div className="grid grid-cols-[1fr_auto] items-center gap-2 rounded-md border border-ink/10 bg-white px-3">
@@ -101,10 +114,14 @@ export function ExerciseLogCard({ log }: ExerciseLogCardProps) {
   );
 }
 
-function formatExerciseDetail(distanceKm: number | null, durationMinutes: number | null) {
+function formatExerciseDetail(
+  distanceKm: number | null,
+  durationMinutes: number | null,
+  supportsDistance: boolean
+) {
   const details = [];
 
-  if (distanceKm !== null) {
+  if (supportsDistance && distanceKm !== null) {
     details.push(`${distanceKm} km`);
   }
 
