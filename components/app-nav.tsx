@@ -26,6 +26,7 @@ export function AppNav() {
           ].join(" ")}
           href={link.href}
           key={link.href}
+          aria-current={pathname === link.href ? "page" : undefined}
         >
           {link.label}
         </Link>

@@ -1,6 +1,6 @@
 # Nutrition Tracker v2
 
-Private, mobile-first nutrition tracking application. This repository currently contains the Phase 1 foundation, Phase 2 profile and target setup, the Phase 3 Today dashboard, Phase 4 manual food logging, Phase 5 external food lookup, Phase 6 conversational food logging, Phase 7 intelligent fallback, Phase 8 saved meals, Phase 9 exercise logging, and Phase 10 weight tracking.
+Private, mobile-first nutrition tracking application. This repository currently contains the Phase 1 foundation, Phase 2 profile and target setup, the Phase 3 Today dashboard, Phase 4 manual food logging, Phase 5 external food lookup, Phase 6 conversational food logging, Phase 7 intelligent fallback, Phase 8 saved meals, Phase 9 exercise logging, Phase 10 weight tracking, and Phase 11 PWA/polish foundations.
 
 ## Local Setup
 
@@ -37,6 +37,10 @@ npm run dev
 
 Without Supabase values, the app will still start and show the login screen with a setup message,
 but authentication will not work until `.env.local` is configured.
+
+The app includes a web app manifest and icon for home-screen installation. For the best iPhone
+test, use a deployed HTTPS URL and choose Share -> Add to Home Screen in Safari. Localhost is useful
+for development, but iOS home-screen behaviour is best verified from the deployed app.
 
 ## Environment Variables
 
@@ -126,4 +130,4 @@ save every target manually.
 
 ## Phase Notes
 
-The Today dashboard reads current-day food, exercise, and weight trend rows. Manual food creation, daily food logging, external food lookup, and conversational food parsing are available. Saved-food lists and logging controls are searchable and capped so they remain usable as the personal database grows. PortFIR reference search works after applying the reference migration and running the importer. Open Food Facts search works with a descriptive `OPEN_FOOD_FACTS_USER_AGENT`; USDA FoodData Central search requires `USDA_FOODDATA_API_KEY`. Conversational food logging parses natural language into structured items, matches saved/reference/external foods, and requires confirmation before saving. When a food cannot be safely resolved or logged with database units, Phase 7 can use a server-side LLM fallback to create an explicitly `estimated` log row. Phase 8 adds a Meals screen, reusable saved meals with aliases, quick saved-meal logging from Today, and simple conversational saved-meal retrieval such as "usual breakfast without banana". Phase 9 adds exercise logging for common activity categories, deterministic calorie estimates based on profile weight, editable exercise logs, and the configured exercise eat-back adjustment on the Today dashboard. Running uses distance when available; other exercise categories use duration-based MET estimates. Phase 10 adds quick weight logging, editable history, latest weight, 7-day moving average, 30-day trend, and a simple graph. PWA configuration is reserved for later phases in `SPEC.md`.
+The Today dashboard reads current-day food, exercise, and weight trend rows. Manual food creation, daily food logging, external food lookup, and conversational food parsing are available. Saved-food lists and logging controls are searchable and capped so they remain usable as the personal database grows. PortFIR reference search works after applying the reference migration and running the importer. Open Food Facts search works with a descriptive `OPEN_FOOD_FACTS_USER_AGENT`; USDA FoodData Central search requires `USDA_FOODDATA_API_KEY`. Conversational food logging parses natural language into structured items, matches saved/reference/external foods, and requires confirmation before saving. When a food cannot be safely resolved or logged with database units, Phase 7 can use a server-side LLM fallback to create an explicitly `estimated` log row. Phase 8 adds a Meals screen, reusable saved meals with aliases, quick saved-meal logging from Today, and simple conversational saved-meal retrieval such as "usual breakfast without banana". Phase 9 adds exercise logging for common activity categories, deterministic calorie estimates based on profile weight, editable exercise logs, and the configured exercise eat-back adjustment on the Today dashboard. Running uses distance when available; other exercise categories use duration-based MET estimates. Phase 10 adds quick weight logging, editable history, latest weight, 7-day moving average, 30-day trend, and a simple graph. Phase 11 adds install metadata, an app icon, standalone-friendly viewport metadata, loading/error screens, and accessibility-focused shell polish.

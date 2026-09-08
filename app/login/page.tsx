@@ -10,7 +10,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const { message } = await searchParams;
 
   return (
-    <main className="flex min-h-screen items-center justify-center px-5 py-10">
+    <main className="flex min-h-screen items-center justify-center px-5 py-10" id="main-content">
       <section className="w-full max-w-sm rounded-lg bg-white/90 p-6 shadow-soft">
         <p className="text-sm font-medium text-moss">Nutrition Tracker</p>
         <h1 className="mt-2 text-3xl font-semibold tracking-normal text-ink">Sign in</h1>
@@ -51,12 +51,14 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             <button
               className="min-h-12 rounded-md bg-ink px-4 text-sm font-semibold text-white transition hover:bg-moss"
               formAction={signIn}
+              type="submit"
             >
               Sign in
             </button>
             <button
               className="min-h-12 rounded-md border border-ink/15 bg-white px-4 text-sm font-semibold text-ink transition hover:border-moss"
               formAction={signUp}
+              type="submit"
             >
               Sign up
             </button>
