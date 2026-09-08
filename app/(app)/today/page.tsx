@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 
 import { ConversationalFoodLogForm } from "@/components/conversational-food-log-form";
+import { ExerciseLogCard } from "@/components/exercise-log-card";
+import { ExerciseLogForm } from "@/components/exercise-log-form";
 import { FoodLogCard } from "@/components/food-log-card";
 import { NutritionCylinder } from "@/components/nutrition-cylinder";
 import { SavedMealCard } from "@/components/saved-meal-card";
@@ -76,13 +78,12 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
           >
             + Add food
           </a>
-          <button
-            className="min-h-12 rounded-md border border-white/70 bg-butter/80 px-3 text-sm font-semibold text-ink shadow-sm disabled:opacity-100"
-            disabled
-            type="button"
+          <a
+            className="grid min-h-12 place-items-center rounded-md border border-white/70 bg-butter/80 px-3 text-sm font-semibold text-ink shadow-sm"
+            href="/today#log-exercise"
           >
             + Add exercise
-          </button>
+          </a>
         </div>
       </div>
 
@@ -220,6 +221,7 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
 
       <section className="grid gap-3 rounded-lg bg-white/70 p-4 shadow-soft ring-1 ring-white/70">
         <SectionHeader title="Exercise" count={dashboard.exerciseLogs.length} />
+        <ExerciseLogForm />
         <div className="rounded-lg border border-white/70 bg-white/80 p-4 shadow-sm">
           <div className="flex items-center justify-between gap-4">
             <div>
@@ -234,16 +236,11 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
 
         {dashboard.exerciseLogs.length > 0 ? (
           dashboard.exerciseLogs.map((log) => (
-            <div key={log.id} className="rounded-md border border-white/70 bg-white/82 px-4 py-3 shadow-sm">
-              <p className="text-sm font-semibold text-ink">{log.type}</p>
-              <p className="mt-1 text-sm text-ink/60">
-                {Math.round(Number(log.calories_estimated))} kcal estimated
-              </p>
-            </div>
+            <ExerciseLogCard key={log.id} log={log} />
           ))
         ) : (
           <EmptyPanel
-            text="Exercise entries are coming in a later phase."
+            text="Log a run above and your daily calorie adjustment will update here."
             title="No exercise logged today"
           />
         )}

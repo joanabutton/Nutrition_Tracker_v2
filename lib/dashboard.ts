@@ -48,7 +48,9 @@ export async function getTodayDashboard() {
         .order("logged_at", { ascending: false }),
       supabase
         .from("exercise_logs")
-        .select("id,logged_at,type,duration_minutes,distance_km,calories_estimated")
+        .select(
+          "id,logged_at,type,duration_minutes,distance_km,calories_estimated,estimation_method,original_user_text"
+        )
         .eq("user_id", user.id)
         .gte("logged_at", start.toISOString())
         .lt("logged_at", end.toISOString())
