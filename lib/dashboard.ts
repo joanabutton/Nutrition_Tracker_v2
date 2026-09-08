@@ -9,6 +9,7 @@ import { getAppTimeZone } from "@/lib/env";
 import { getFoods, getRecentFoods } from "@/lib/foods";
 import { getCurrentProfile } from "@/lib/profile";
 import { createClient } from "@/lib/supabase/server";
+import { getWeightTrend } from "@/lib/weight";
 
 export type DashboardData = Awaited<ReturnType<typeof getTodayDashboard>>;
 
@@ -34,7 +35,8 @@ export async function getTodayDashboard() {
     { data: foodLogs, error: foodLogsError },
     { data: exerciseLogs, error: exerciseLogsError },
     foods,
-    recentFoods
+    recentFoods,
+    weightTrend
   ] =
     await Promise.all([
       supabase
@@ -56,7 +58,8 @@ export async function getTodayDashboard() {
         .lt("logged_at", end.toISOString())
         .order("logged_at", { ascending: false }),
       getFoods(),
-      getRecentFoods()
+      getRecentFoods(),
+      getWeightTrend()
     ]);
 
   if (foodLogsError) {
@@ -89,6 +92,7 @@ export async function getTodayDashboard() {
     foodTotals,
     exerciseCalories,
     exerciseAdjustment,
-    remainingCalories
+    remainingCalories,
+    weightTrend
   };
 }

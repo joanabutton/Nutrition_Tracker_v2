@@ -248,6 +248,32 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
           />
         )}
       </section>
+
+      <section className="grid gap-3 rounded-lg bg-white/70 p-4 shadow-soft ring-1 ring-white/70">
+        <SectionHeader title="Weight" count={dashboard.weightTrend.history.length} />
+        <div className="grid grid-cols-2 gap-2">
+          <div className="rounded-md bg-white/75 px-3 py-3 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-ink/45">Latest</p>
+            <p className="mt-2 text-lg font-semibold text-ink">
+              {dashboard.weightTrend.latestWeightKg === null
+                ? "--"
+                : `${dashboard.weightTrend.latestWeightKg.toFixed(1)} kg`}
+            </p>
+          </div>
+          <div className="rounded-md bg-white/75 px-3 py-3 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-ink/45">30-day</p>
+            <p className="mt-2 text-lg font-semibold text-ink">
+              {formatTrendValue(dashboard.weightTrend.thirtyDayTrendKg)}
+            </p>
+          </div>
+        </div>
+        <a
+          className="grid min-h-11 place-items-center rounded-md bg-gradient-to-r from-rose via-lilac to-aqua px-3 text-sm font-semibold text-ink shadow-sm"
+          href="/weight"
+        >
+          Open weight log
+        </a>
+      </section>
     </section>
   );
 }
@@ -283,4 +309,16 @@ function EmptyPanel({ title, text }: { title: string; text: string }) {
       <p className="mt-1 text-sm leading-6 text-ink/60">{text}</p>
     </div>
   );
+}
+
+function formatTrendValue(value: number | null) {
+  if (value === null) {
+    return "--";
+  }
+
+  if (value > 0) {
+    return `+${value.toFixed(1)} kg`;
+  }
+
+  return `${value.toFixed(1)} kg`;
 }
