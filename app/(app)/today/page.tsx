@@ -141,11 +141,15 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
         <SectionHeader title="Meals" count={dashboard.foodLogs.length} />
         {dashboard.foodLogs.length > 0 ? (
           <div className="grid gap-3">
-            {groupFoodLogsByMeal(dashboard.foodLogs).map(({ label, logs }) => (
+            {groupFoodLogsByMeal(dashboard.foodLogs).map(({ label, logs, calories }) => (
               <div className="grid gap-2" key={label}>
                 <div className="flex items-center justify-between gap-3">
-                  <h4 className="text-sm font-semibold text-ink">{label}</h4>
-                  <span className="text-xs font-semibold text-ink/45">{logs.length}</span>
+                  <h4 className="text-sm font-semibold text-ink">
+                    {label} · {Math.round(calories)} kcal
+                  </h4>
+                  <span className="text-xs font-semibold text-ink/45">
+                    {logs.length} {logs.length === 1 ? "item" : "items"}
+                  </span>
                 </div>
                 <div className="grid gap-2">
                   {logs.map((log) => (
@@ -202,6 +206,10 @@ function groupFoodLogsByMeal(foodLogs: TodayFoodLog[]) {
     .map(({ type, label }) => ({
       label,
       logs: foodLogs.filter((log) => log.meal_type === type)
+    }))
+    .map((section) => ({
+      ...section,
+      calories: section.logs.reduce((total, log) => total + Number(log.calories), 0)
     }))
     .filter((section) => section.logs.length > 0);
 }

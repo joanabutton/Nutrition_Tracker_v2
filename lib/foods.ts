@@ -48,8 +48,14 @@ export async function getFoods({ limit = defaultFoodsLimit, query = "" }: GetFoo
   const trimmedQuery = query.trim();
 
   if (trimmedQuery) {
+    const terms = buildSearchTerms(trimmedQuery);
     request = request.or(
-      `name.ilike.%${escapeSupabaseFilterValue(trimmedQuery)}%,brand.ilike.%${escapeSupabaseFilterValue(trimmedQuery)}%`
+      terms
+        .flatMap((term) => [
+          `name.ilike.%${escapeSupabaseFilterValue(term)}%`,
+          `brand.ilike.%${escapeSupabaseFilterValue(term)}%`
+        ])
+        .join(",")
     );
   }
 
@@ -64,6 +70,18 @@ export async function getFoods({ limit = defaultFoodsLimit, query = "" }: GetFoo
 
 function escapeSupabaseFilterValue(value: string) {
   return value.replace(/[%*,]/g, "");
+}
+
+function buildSearchTerms(value: string) {
+  return Array.from(
+    new Set([
+      value,
+      ...value
+        .split(/\s+/)
+        .map((term) => term.trim())
+        .filter((term) => term.length >= 3)
+    ])
+  ).slice(0, 6);
 }
 
 export async function getRecentFoods(limit = 5) {

@@ -226,52 +226,31 @@ export function calculateEstimatedDraftItemNutrition(
 async function resolveParsedFoodItem(
   item: ParsedFoodLog["items"][number]
 ): Promise<ConversationalFoodDraftItem> {
-  const savedMatches = await findSavedFoodMatches(item.name);
+  const [savedMatches, referenceResult, externalResult] = await Promise.all([
+    findSavedFoodMatches(item.name),
+    searchReferenceFoods(item.name),
+    searchExternalFoods(item.name)
+  ]);
   const savedResolutions = savedMatches.map(toSavedResolution);
-  const savedMatch = savedResolutions[0];
+  const referenceMatches = referenceResult.foods.map(toExternalResolution);
+  const externalMatches = externalResult.foods.map(toExternalResolution);
+  const alternatives = dedupeResolutions([
+    ...savedResolutions,
+    ...referenceMatches,
+    ...externalMatches
+  ]);
+  const selectedMatch = alternatives[0];
 
-  if (savedMatch) {
+  if (selectedMatch) {
     return {
       inputName: item.name,
       quantity: item.quantity,
       unit: item.unit,
       quantityIsEstimated: item.quantityIsEstimated,
       portionDescription: item.portionDescription,
-      resolved: savedMatch,
-      alternatives: dedupeResolutions(savedResolutions),
-      warning: buildDraftWarning(item, savedMatch.servingUnit)
-    };
-  }
-
-  const referenceMatches = (await searchReferenceFoods(item.name)).foods.map(toExternalResolution);
-  const referenceMatch = referenceMatches[0];
-
-  if (referenceMatch) {
-    return {
-      inputName: item.name,
-      quantity: item.quantity,
-      unit: item.unit,
-      quantityIsEstimated: item.quantityIsEstimated,
-      portionDescription: item.portionDescription,
-      resolved: referenceMatch,
-      alternatives: dedupeResolutions([...savedResolutions, ...referenceMatches]),
-      warning: buildDraftWarning(item, referenceMatch.servingUnit)
-    };
-  }
-
-  const externalMatches = (await searchExternalFoods(item.name)).foods.map(toExternalResolution);
-  const externalMatch = externalMatches[0];
-
-  if (externalMatch) {
-    return {
-      inputName: item.name,
-      quantity: item.quantity,
-      unit: item.unit,
-      quantityIsEstimated: item.quantityIsEstimated,
-      portionDescription: item.portionDescription,
-      resolved: externalMatch,
-      alternatives: dedupeResolutions([...savedResolutions, ...referenceMatches, ...externalMatches]),
-      warning: buildDraftWarning(item, externalMatch.servingUnit)
+      resolved: selectedMatch,
+      alternatives,
+      warning: buildDraftWarning(item, selectedMatch.servingUnit)
     };
   }
 
