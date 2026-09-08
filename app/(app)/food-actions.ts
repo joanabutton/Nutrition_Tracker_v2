@@ -10,13 +10,15 @@ import {
 } from "@/lib/nutrition/external-foods";
 import { scaleFoodNutrition, scaleLoggedNutrition } from "@/lib/nutrition/food";
 import {
+  applyDraftMatchSelections,
   calculateEstimatedDraftItemNutrition,
   calculateDraftItemNutrition,
   decodeDraft,
   encodeDraft,
   materializeDraftItemFood,
   resolveParsedFoodLog,
-  type ConversationalFoodDraft
+  type ConversationalFoodDraft,
+  type ConversationalFoodDraftItem
 } from "@/lib/nutrition/conversational-foods";
 import { getReferenceFoodCandidate, isReferenceFoodSource } from "@/lib/reference-foods";
 import { createClient } from "@/lib/supabase/server";
@@ -24,6 +26,13 @@ import { createClient } from "@/lib/supabase/server";
 type MealType = "breakfast" | "lunch" | "dinner" | "snack";
 
 const mealTypes: MealType[] = ["breakfast", "lunch", "dinner", "snack"];
+
+type PreparedConversationalFoodLogItem = {
+  foodId: string | null;
+  mealQuantity: number;
+  mealUnit: string;
+  row: Record<string, string | number | null>;
+};
 
 export type ConversationalFoodLogState = {
   draft: ConversationalFoodDraft | null;
@@ -64,6 +73,7 @@ export async function confirmConversationalFoodLog(formData: FormData) {
 
   try {
     draft = decodeDraft(readRequiredString(formData, "draft"));
+    draft = applyDraftMatchSelections(draft, readDraftMatchSelections(formData, draft.items.length));
     draft = applyDraftEdits(draft, formData);
   } catch (error) {
     redirectWithMessage("/today", getErrorMessage(error));
@@ -78,21 +88,50 @@ export async function confirmConversationalFoodLog(formData: FormData) {
   }
 
   try {
-    const rows = await Promise.all(
+    const saveAsMeal = formData.get("saveAsMeal") === "on";
+    const savedMealName = saveAsMeal ? readRequiredString(formData, "savedMealName") : null;
+    const preparedItems = await Promise.all(
       draft.items.map(async (item) => {
         if (item.resolved?.kind === "estimated_food") {
+          if (saveAsMeal) {
+            const food = await createEstimatedFoodFromDraftItem(supabase, user.id, item);
+            const nutrition = calculateDraftItemNutrition(food, item.quantity, item.unit);
+
+            return {
+              foodId: food.id,
+              mealQuantity: item.quantity,
+              mealUnit: item.unit,
+              row: {
+                user_id: user.id,
+                meal_type: draft.mealType,
+                food_id: food.id,
+                display_name: item.resolved.name,
+                quantity: item.quantity,
+                unit: item.unit,
+                nutrition_source: "estimated" as const,
+                original_user_text: draft.originalText,
+                ...nutrition
+              }
+            };
+          }
+
           const nutrition = calculateEstimatedDraftItemNutrition(item, item.quantity, item.unit);
 
           return {
-            user_id: user.id,
-            meal_type: draft.mealType,
-            food_id: null,
-            display_name: item.resolved.name,
-            quantity: item.quantity,
-            unit: item.unit,
-            nutrition_source: "estimated" as const,
-            original_user_text: draft.originalText,
-            ...nutrition
+            foodId: null,
+            mealQuantity: item.quantity,
+            mealUnit: item.unit,
+            row: {
+              user_id: user.id,
+              meal_type: draft.mealType,
+              food_id: null,
+              display_name: item.resolved.name,
+              quantity: item.quantity,
+              unit: item.unit,
+              nutrition_source: "estimated" as const,
+              original_user_text: draft.originalText,
+              ...nutrition
+            }
           };
         }
 
@@ -100,23 +139,32 @@ export async function confirmConversationalFoodLog(formData: FormData) {
         const nutrition = calculateDraftItemNutrition(food, item.quantity, item.unit);
 
         return {
-          user_id: user.id,
-          meal_type: draft.mealType,
-          food_id: food.id,
-          display_name: formatFoodName(food.name, food.brand),
-          quantity: item.quantity,
-          unit: food.serving_unit,
-          nutrition_source: food.source,
-          original_user_text: draft.originalText,
-          ...nutrition
+          foodId: food.id,
+          mealQuantity: item.quantity,
+          mealUnit: item.unit,
+          row: {
+            user_id: user.id,
+            meal_type: draft.mealType,
+            food_id: food.id,
+            display_name: formatFoodName(food.name, food.brand),
+            quantity: item.quantity,
+            unit: food.serving_unit,
+            nutrition_source: food.source,
+            original_user_text: draft.originalText,
+            ...nutrition
+          }
         };
       })
     );
 
-    const { error } = await supabase.from("food_logs").insert(rows);
+    const { error } = await supabase.from("food_logs").insert(preparedItems.map((item) => item.row));
 
     if (error) {
       throw new Error(error.message);
+    }
+
+    if (saveAsMeal && savedMealName) {
+      await createSavedMealFromPreparedItems(supabase, user.id, savedMealName, preparedItems);
     }
   } catch (error) {
     redirectWithMessage("/today", getErrorMessage(error));
@@ -485,6 +533,86 @@ async function findOrCreateExternalFood(
   return data;
 }
 
+async function createEstimatedFoodFromDraftItem(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  item: ConversationalFoodDraftItem
+) {
+  if (!item.resolved || item.resolved.kind !== "estimated_food") {
+    throw new Error(`${item.inputName} is not estimated.`);
+  }
+
+  const { data, error } = await supabase
+    .from("foods")
+    .insert({
+      user_id: userId,
+      name: item.resolved.name,
+      brand: null,
+      aliases: item.inputName === item.resolved.name ? [] : [item.inputName],
+      source: "estimated",
+      serving_quantity: item.resolved.servingQuantity,
+      serving_unit: item.resolved.servingUnit,
+      calories: item.resolved.calories,
+      protein_g: item.resolved.proteinG,
+      carbohydrate_g: item.resolved.carbohydrateG,
+      fat_g: item.resolved.fatG,
+      saturated_fat_g: item.resolved.saturatedFatG,
+      fibre_g: item.resolved.fibreG,
+      total_sugars_g: null,
+      added_sugar_g: item.resolved.addedSugarG
+    })
+    .select(
+      "id,name,brand,source,serving_quantity,serving_unit,calories,protein_g,carbohydrate_g,fat_g,saturated_fat_g,fibre_g,added_sugar_g"
+    )
+    .single();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return data;
+}
+
+async function createSavedMealFromPreparedItems(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  name: string,
+  items: PreparedConversationalFoodLogItem[]
+) {
+  const { data: meal, error: mealError } = await supabase
+    .from("saved_meals")
+    .insert({
+      user_id: userId,
+      name,
+      aliases: []
+    })
+    .select("id")
+    .single();
+
+  if (mealError) {
+    throw new Error(mealError.message);
+  }
+
+  const rows = items.map((item) => {
+    if (!item.foodId) {
+      throw new Error("Estimated foods must be saved before creating a reusable meal.");
+    }
+
+    return {
+      saved_meal_id: meal.id,
+      food_id: item.foodId,
+      quantity: item.mealQuantity,
+      unit: item.mealUnit
+    };
+  });
+
+  const { error: itemError } = await supabase.from("saved_meal_items").insert(rows);
+
+  if (itemError) {
+    throw new Error(itemError.message);
+  }
+}
+
 async function requireUser(supabase: Awaited<ReturnType<typeof createClient>>) {
   const {
     data: { user }
@@ -575,6 +703,24 @@ function readMealType(formData: FormData): MealType {
   }
 
   return value as MealType;
+}
+
+function readDraftMatchSelections(formData: FormData, itemCount: number) {
+  return Array.from({ length: itemCount }, (_, index) => {
+    const raw = String(formData.get(`match_${index}`) ?? "").trim();
+
+    if (!raw) {
+      return null;
+    }
+
+    const value = Number(raw);
+
+    if (!Number.isInteger(value) || value < 0) {
+      throw new Error("Selected food match is invalid.");
+    }
+
+    return value;
+  });
 }
 
 function readExternalFoodSource(formData: FormData): ExternalFoodSource {

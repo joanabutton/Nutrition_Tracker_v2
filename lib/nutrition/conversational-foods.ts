@@ -1,3 +1,5 @@
+import { createHmac, timingSafeEqual } from "crypto";
+
 import {
   estimateFoodFallbacks,
   type FoodFallbackRequestItem
@@ -18,6 +20,43 @@ import {
 } from "@/lib/reference-foods";
 import { createClient } from "@/lib/supabase/server";
 
+type FoodResolution =
+  | {
+      kind: "saved_food";
+      foodId: string;
+      name: string;
+      brand: string | null;
+      servingQuantity: number;
+      servingUnit: string;
+      calories: number;
+      nutritionSource: FoodRecord["source"];
+    }
+  | {
+      kind: "external_food";
+      externalSource: ExternalFoodSource;
+      externalSourceId: string;
+      name: string;
+      brand: string | null;
+      servingQuantity: number;
+      servingUnit: string;
+      calories: number;
+    }
+  | {
+      kind: "estimated_food";
+      name: string;
+      brand: null;
+      servingQuantity: number;
+      servingUnit: string;
+      calories: number;
+      proteinG: number;
+      carbohydrateG: number;
+      fatG: number;
+      saturatedFatG: number;
+      fibreG: number;
+      addedSugarG: number | null;
+      reason: string;
+    };
+
 export type ConversationalFoodDraft = {
   originalText: string;
   mealType: "breakfast" | "lunch" | "dinner" | "snack";
@@ -30,43 +69,8 @@ export type ConversationalFoodDraftItem = {
   unit: string;
   quantityIsEstimated: boolean;
   portionDescription: string | null;
-  resolved:
-    | {
-        kind: "saved_food";
-        foodId: string;
-        name: string;
-        brand: string | null;
-        servingQuantity: number;
-        servingUnit: string;
-        calories: number;
-        nutritionSource: FoodRecord["source"];
-      }
-    | {
-        kind: "external_food";
-        externalSource: ExternalFoodSource;
-        externalSourceId: string;
-        name: string;
-        brand: string | null;
-        servingQuantity: number;
-        servingUnit: string;
-        calories: number;
-      }
-    | {
-        kind: "estimated_food";
-        name: string;
-        brand: null;
-        servingQuantity: number;
-        servingUnit: string;
-        calories: number;
-        proteinG: number;
-        carbohydrateG: number;
-        fatG: number;
-        saturatedFatG: number;
-        fibreG: number;
-        addedSugarG: number | null;
-        reason: string;
-      }
-    | null;
+  resolved: FoodResolution | null;
+  alternatives: FoodResolution[];
   warning: string | null;
 };
 
@@ -84,12 +88,59 @@ export async function resolveParsedFoodLog(
 }
 
 export function encodeDraft(draft: ConversationalFoodDraft) {
-  return Buffer.from(JSON.stringify(draft), "utf8").toString("base64");
+  const payload = Buffer.from(JSON.stringify(draft), "utf8").toString("base64url");
+  const signature = signDraftPayload(payload);
+
+  return `${payload}.${signature}`;
 }
 
 export function decodeDraft(value: string): ConversationalFoodDraft {
-  const parsed = JSON.parse(Buffer.from(value, "base64").toString("utf8")) as unknown;
+  const [payload, signature] = value.split(".");
+
+  if (!payload || !signature || !isValidDraftSignature(payload, signature)) {
+    throw new Error("Food log draft could not be verified.");
+  }
+
+  const parsed = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as unknown;
   return validateDraft(parsed);
+}
+
+export function applyDraftMatchSelections(
+  draft: ConversationalFoodDraft,
+  selections: Array<number | null>
+): ConversationalFoodDraft {
+  return {
+    ...draft,
+    items: draft.items.map((item, index) => {
+      const selectedIndex = selections[index];
+
+      if (
+        selectedIndex === null ||
+        selectedIndex === undefined ||
+        selectedIndex < 0 ||
+        selectedIndex >= item.alternatives.length
+      ) {
+        return item;
+      }
+
+      const resolved = item.alternatives[selectedIndex];
+
+      return {
+        ...item,
+        resolved,
+        warning: buildDraftWarning(
+          {
+            name: item.inputName,
+            quantity: item.quantity,
+            unit: item.unit,
+            quantityIsEstimated: item.quantityIsEstimated,
+            portionDescription: item.portionDescription
+          },
+          resolved.servingUnit
+        )
+      };
+    })
+  };
 }
 
 export async function materializeDraftItemFood(
@@ -175,7 +226,9 @@ export function calculateEstimatedDraftItemNutrition(
 async function resolveParsedFoodItem(
   item: ParsedFoodLog["items"][number]
 ): Promise<ConversationalFoodDraftItem> {
-  const savedMatch = await findSavedFoodMatch(item.name);
+  const savedMatches = await findSavedFoodMatches(item.name);
+  const savedResolutions = savedMatches.map(toSavedResolution);
+  const savedMatch = savedResolutions[0];
 
   if (savedMatch) {
     return {
@@ -184,21 +237,14 @@ async function resolveParsedFoodItem(
       unit: item.unit,
       quantityIsEstimated: item.quantityIsEstimated,
       portionDescription: item.portionDescription,
-      resolved: {
-        kind: "saved_food",
-        foodId: savedMatch.id,
-        name: savedMatch.name,
-        brand: savedMatch.brand,
-        servingQuantity: savedMatch.serving_quantity,
-        servingUnit: savedMatch.serving_unit,
-        calories: savedMatch.calories,
-        nutritionSource: savedMatch.source
-      },
-      warning: buildDraftWarning(item, savedMatch.serving_unit)
+      resolved: savedMatch,
+      alternatives: dedupeResolutions(savedResolutions),
+      warning: buildDraftWarning(item, savedMatch.servingUnit)
     };
   }
 
-  const referenceMatch = (await searchReferenceFoods(item.name)).foods[0];
+  const referenceMatches = (await searchReferenceFoods(item.name)).foods.map(toExternalResolution);
+  const referenceMatch = referenceMatches[0];
 
   if (referenceMatch) {
     return {
@@ -207,12 +253,14 @@ async function resolveParsedFoodItem(
       unit: item.unit,
       quantityIsEstimated: item.quantityIsEstimated,
       portionDescription: item.portionDescription,
-      resolved: toExternalResolution(referenceMatch),
+      resolved: referenceMatch,
+      alternatives: dedupeResolutions([...savedResolutions, ...referenceMatches]),
       warning: buildDraftWarning(item, referenceMatch.servingUnit)
     };
   }
 
-  const externalMatch = (await searchExternalFoods(item.name)).foods[0];
+  const externalMatches = (await searchExternalFoods(item.name)).foods.map(toExternalResolution);
+  const externalMatch = externalMatches[0];
 
   if (externalMatch) {
     return {
@@ -221,7 +269,8 @@ async function resolveParsedFoodItem(
       unit: item.unit,
       quantityIsEstimated: item.quantityIsEstimated,
       portionDescription: item.portionDescription,
-      resolved: toExternalResolution(externalMatch),
+      resolved: externalMatch,
+      alternatives: dedupeResolutions([...savedResolutions, ...referenceMatches, ...externalMatches]),
       warning: buildDraftWarning(item, externalMatch.servingUnit)
     };
   }
@@ -233,22 +282,61 @@ async function resolveParsedFoodItem(
     quantityIsEstimated: item.quantityIsEstimated,
     portionDescription: item.portionDescription,
     resolved: null,
+    alternatives: [],
     warning: buildDraftWarning(item, null) ?? "No saved or database match yet."
   };
 }
 
-async function findSavedFoodMatch(name: string) {
+async function findSavedFoodMatches(name: string) {
   const foods = await getFoods({ limit: 5, query: name });
   const normalizedName = normalize(name);
-  return (
-    foods.find((food) => normalize(food.name) === normalizedName) ??
-    foods.find((food) => normalize(`${food.brand ?? ""} ${food.name}`).includes(normalizedName)) ??
-    foods[0] ??
-    null
-  );
+  return [...foods].sort((first, second) => {
+    const firstName = normalize(first.name);
+    const secondName = normalize(second.name);
+    const firstBrandName = normalize(`${first.brand ?? ""} ${first.name}`);
+    const secondBrandName = normalize(`${second.brand ?? ""} ${second.name}`);
+
+    return (
+      scoreSavedFoodMatch(firstName, firstBrandName, normalizedName) -
+      scoreSavedFoodMatch(secondName, secondBrandName, normalizedName)
+    );
+  });
 }
 
-function toExternalResolution(candidate: ExternalFoodCandidate) {
+function scoreSavedFoodMatch(name: string, brandName: string, query: string) {
+  if (name === query) {
+    return 0;
+  }
+
+  if (brandName === query) {
+    return 1;
+  }
+
+  if (name.startsWith(query)) {
+    return 2;
+  }
+
+  if (brandName.includes(query)) {
+    return 3;
+  }
+
+  return 4;
+}
+
+function toSavedResolution(food: FoodRecord): FoodResolution {
+  return {
+    kind: "saved_food",
+    foodId: food.id,
+    name: food.name,
+    brand: food.brand,
+    servingQuantity: food.serving_quantity,
+    servingUnit: food.serving_unit,
+    calories: food.calories,
+    nutritionSource: food.source
+  };
+}
+
+function toExternalResolution(candidate: ExternalFoodCandidate): FoodResolution {
   return {
     kind: "external_food" as const,
     externalSource: candidate.externalSource,
@@ -324,6 +412,7 @@ async function applyEstimatedFallbacks(draft: ConversationalFoodDraft): Promise<
               addedSugarG: estimate.addedSugarG,
               reason: estimate.reason
             },
+        alternatives: item.alternatives,
         warning: item.resolved
           ? `Estimated quantity: ${estimate.reason}`
           : `Estimated fallback: ${estimate.reason}`
@@ -463,6 +552,9 @@ function validateDraftItem(item: unknown): ConversationalFoodDraftItem {
         ? draftItem.portionDescription.trim()
         : null,
     resolved: validateResolution(draftItem.resolved),
+    alternatives: Array.isArray(draftItem.alternatives)
+      ? dedupeResolutions(draftItem.alternatives.map(validateResolution).filter(isResolution))
+      : [],
     warning: draftItem.warning ? String(draftItem.warning) : null
   };
 }
@@ -550,6 +642,63 @@ function normalize(value: string) {
 
 function normalizeUnit(value: string) {
   return normalize(value).replace(/\s+/g, "");
+}
+
+function dedupeResolutions(resolutions: FoodResolution[]) {
+  const seen = new Set<string>();
+  const deduped: FoodResolution[] = [];
+
+  for (const resolution of resolutions) {
+    const key = getResolutionKey(resolution);
+
+    if (!seen.has(key)) {
+      seen.add(key);
+      deduped.push(resolution);
+    }
+  }
+
+  return deduped.slice(0, 8);
+}
+
+function getResolutionKey(resolution: FoodResolution) {
+  if (resolution.kind === "saved_food") {
+    return `saved:${resolution.foodId}`;
+  }
+
+  if (resolution.kind === "estimated_food") {
+    return `estimated:${normalize(resolution.name)}:${resolution.servingQuantity}:${resolution.servingUnit}`;
+  }
+
+  return `${resolution.externalSource}:${resolution.externalSourceId}`;
+}
+
+function isResolution(resolution: ConversationalFoodDraftItem["resolved"]): resolution is FoodResolution {
+  return Boolean(resolution);
+}
+
+function signDraftPayload(payload: string) {
+  return createHmac("sha256", getDraftSigningSecret()).update(payload).digest("base64url");
+}
+
+function isValidDraftSignature(payload: string, signature: string) {
+  const expected = signDraftPayload(payload);
+  const expectedBuffer = Buffer.from(expected, "base64url");
+  const actualBuffer = Buffer.from(signature, "base64url");
+
+  return (
+    expectedBuffer.length === actualBuffer.length &&
+    timingSafeEqual(expectedBuffer, actualBuffer)
+  );
+}
+
+function getDraftSigningSecret() {
+  const secret = process.env.APP_DRAFT_SIGNING_SECRET || process.env.OPENAI_API_KEY;
+
+  if (!secret) {
+    throw new Error("APP_DRAFT_SIGNING_SECRET or OPENAI_API_KEY is required to sign food log drafts.");
+  }
+
+  return secret;
 }
 
 function readPositiveNumber(value: unknown, label: string) {

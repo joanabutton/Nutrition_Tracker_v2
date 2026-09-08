@@ -1,13 +1,18 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  applyDraftMatchSelections,
   calculateEstimatedDraftItemNutrition,
   calculateDraftItemNutrition,
   decodeDraft,
+  encodeDraft,
+  type ConversationalFoodDraft,
   type ConversationalFoodDraftItem
 } from "@/lib/nutrition/conversational-foods";
 
 describe("conversational estimated food nutrition", () => {
+  process.env.APP_DRAFT_SIGNING_SECRET = "test-draft-secret";
+
   it("scales estimated rows when the user edits quantity", () => {
     const item: ConversationalFoodDraftItem = {
       inputName: "banana",
@@ -30,6 +35,7 @@ describe("conversational estimated food nutrition", () => {
         addedSugarG: null,
         reason: "Typical medium banana edible portion."
       },
+      alternatives: [],
       warning: "Estimated fallback: Typical medium banana edible portion."
     };
 
@@ -45,7 +51,7 @@ describe("conversational estimated food nutrition", () => {
   });
 
   it("rejects tampered negative estimated nutrition in encoded drafts", () => {
-    const draft = {
+    const draft: ConversationalFoodDraft = {
       originalText: "banana",
       mealType: "snack",
       items: [
@@ -70,14 +76,95 @@ describe("conversational estimated food nutrition", () => {
             addedSugarG: null,
             reason: "Typical medium banana edible portion."
           },
+          alternatives: [],
           warning: "Estimated fallback: Typical medium banana edible portion."
         }
       ]
     };
 
-    const encoded = Buffer.from(JSON.stringify(draft), "utf8").toString("base64");
+    const encoded = encodeDraft(draft);
 
     expect(() => decodeDraft(encoded)).toThrow("estimated calories cannot be negative");
+  });
+
+  it("rejects drafts tampered with after signing", () => {
+    const draft: ConversationalFoodDraft = {
+      originalText: "banana",
+      mealType: "snack",
+      items: [
+        {
+          inputName: "banana",
+          quantity: 100,
+          unit: "g",
+          quantityIsEstimated: false,
+          portionDescription: null,
+          resolved: null,
+          alternatives: [],
+          warning: null
+        }
+      ]
+    };
+    const encoded = encodeDraft(draft);
+    const [payload, signature] = encoded.split(".");
+    const tamperedDraft = { ...draft, mealType: "dinner" as const };
+    const tamperedPayload = Buffer.from(JSON.stringify(tamperedDraft), "utf8").toString("base64url");
+
+    expect(() => decodeDraft(`${tamperedPayload}.${signature}`)).toThrow("could not be verified");
+    expect(payload).not.toBe(tamperedPayload);
+  });
+
+  it("applies a selected alternative match from the signed draft", () => {
+    const draft: ConversationalFoodDraft = {
+      originalText: "tomato",
+      mealType: "snack",
+      items: [
+        {
+          inputName: "tomato",
+          quantity: 80,
+          unit: "g",
+          quantityIsEstimated: true,
+          portionDescription: "part of salad",
+          resolved: {
+            kind: "external_food",
+            externalSource: "open_food_facts",
+            externalSourceId: "ketchup",
+            name: "Ketchup",
+            brand: "Example",
+            servingQuantity: 100,
+            servingUnit: "g",
+            calories: 108
+          },
+          alternatives: [
+            {
+              kind: "external_food",
+              externalSource: "open_food_facts",
+              externalSourceId: "ketchup",
+              name: "Ketchup",
+              brand: "Example",
+              servingQuantity: 100,
+              servingUnit: "g",
+              calories: 108
+            },
+            {
+              kind: "external_food",
+              externalSource: "portfir_bdca",
+              externalSourceId: "portfir_bdca:2026:tomato",
+              name: "Tomato",
+              brand: null,
+              servingQuantity: 100,
+              servingUnit: "g",
+              calories: 18
+            }
+          ],
+          warning: null
+        }
+      ]
+    };
+
+    const updated = applyDraftMatchSelections(draft, [1]);
+
+    expect(updated.items[0]?.resolved?.name).toBe("Tomato");
+    expect(updated.items[0]?.warning).toContain("Estimated from");
   });
 
   it("uses verified nutrition when only the quantity was estimated", () => {

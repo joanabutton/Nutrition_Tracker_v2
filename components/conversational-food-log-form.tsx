@@ -23,17 +23,21 @@ type ConversationalFoodLogFormProps = {
 export function ConversationalFoodLogForm({ embedded = false }: ConversationalFoodLogFormProps) {
   const [state, formAction, isPending] = useActionState(parseConversationalFoodLog, initialState);
   const draftKey = state.encodedDraft ?? "";
+  const [saveAsMeal, setSaveAsMeal] = useState(false);
   const [reviewState, setReviewState] = useState<{
     draftKey: string;
     excludedIndexes: Set<number>;
+    matchSelections: Record<number, number>;
     unitEdits: Record<number, string>;
   }>({
     draftKey: "",
     excludedIndexes: new Set(),
+    matchSelections: {},
     unitEdits: {}
   });
   const excludedIndexes =
     reviewState.draftKey === draftKey ? reviewState.excludedIndexes : new Set<number>();
+  const matchSelections = reviewState.draftKey === draftKey ? reviewState.matchSelections : {};
   const unitEdits = reviewState.draftKey === draftKey ? reviewState.unitEdits : {};
   const activeItems =
     state.draft?.items
@@ -42,9 +46,14 @@ export function ConversationalFoodLogForm({ embedded = false }: ConversationalFo
   const hasUnresolvedItems = activeItems.some(({ item }) => !item.resolved);
   const hasUnitMismatches = Boolean(
     activeItems.some(
-      ({ index, item }) =>
-        item.resolved &&
-        normalizeUnit(unitEdits[index] ?? item.unit) !== normalizeUnit(item.resolved.servingUnit)
+      ({ index, item }) => {
+        const resolution = getSelectedResolution(item, matchSelections[index]);
+
+        return (
+          resolution &&
+          normalizeUnit(unitEdits[index] ?? item.unit) !== normalizeUnit(resolution.servingUnit)
+        );
+      }
     )
   );
   const canConfirmDraft = Boolean(state.draft && activeItems.length > 0 && !hasUnresolvedItems && !hasUnitMismatches);
@@ -97,17 +106,21 @@ export function ConversationalFoodLogForm({ embedded = false }: ConversationalFo
           </label>
 
           <div className="grid gap-2">
-            {state.draft.items.map((item, index) => (
-              <article
-                className={
-                  excludedIndexes.has(index)
-                    ? "rounded-md border border-white/60 bg-white/35 p-3 opacity-60 shadow-sm"
-                    : item.resolved?.kind === "estimated_food"
-                    ? "rounded-md border border-butter/80 bg-butter/25 p-3 shadow-sm"
-                    : "rounded-md border border-white/70 bg-white/75 p-3 shadow-sm"
-                }
-                key={`${item.inputName}-${index}`}
-              >
+            {state.draft.items.map((item, index) => {
+              const selectedMatchIndex = getSelectedMatchIndex(item, matchSelections[index]);
+              const selectedResolution = getSelectedResolution(item, selectedMatchIndex);
+
+              return (
+                <article
+                  className={
+                    excludedIndexes.has(index)
+                      ? "rounded-md border border-white/60 bg-white/35 p-3 opacity-60 shadow-sm"
+                      : selectedResolution?.kind === "estimated_food"
+                      ? "rounded-md border border-butter/80 bg-butter/25 p-3 shadow-sm"
+                      : "rounded-md border border-white/70 bg-white/75 p-3 shadow-sm"
+                  }
+                  key={`${item.inputName}-${index}`}
+                >
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
@@ -133,6 +146,8 @@ export function ConversationalFoodLogForm({ embedded = false }: ConversationalFo
                               return {
                                 draftKey,
                                 excludedIndexes: nextExcluded,
+                                matchSelections:
+                                  current.draftKey === draftKey ? current.matchSelections : {},
                                 unitEdits: current.draftKey === draftKey ? current.unitEdits : {}
                               };
                             });
@@ -142,29 +157,65 @@ export function ConversationalFoodLogForm({ embedded = false }: ConversationalFo
                         Include
                       </label>
                       <p className="text-sm font-semibold text-ink">{item.inputName}</p>
-                      {item.resolved?.kind === "estimated_food" ? (
+                      {selectedResolution?.kind === "estimated_food" ? (
                         <span className="rounded-full bg-butter px-2 py-0.5 text-[0.68rem] font-bold uppercase tracking-[0.12em] text-ink/70">
                           Estimated
                         </span>
                       ) : null}
                     </div>
-                    {item.resolved ? (
+                    {selectedResolution ? (
                       <p className="mt-1 text-xs text-ink/55">
-                        {item.resolved.name}
-                        {item.resolved.brand ? ` · ${item.resolved.brand}` : ""} ·{" "}
-                        {formatResolutionSource(item.resolved)}
+                        {selectedResolution.name}
+                        {selectedResolution.brand ? ` · ${selectedResolution.brand}` : ""} ·{" "}
+                        {formatResolutionSource(selectedResolution)}
                       </p>
                     ) : (
                       <p className="mt-1 text-xs font-semibold text-tomato">No match yet</p>
                     )}
                   </div>
-                  {item.resolved ? (
+                  {selectedResolution ? (
                     <p className="text-sm font-semibold text-ink">
-                      {Math.round(item.resolved.calories)} kcal/{item.resolved.servingQuantity}
-                      {item.resolved.servingUnit}
+                      {Math.round(selectedResolution.calories)} kcal/{selectedResolution.servingQuantity}
+                      {selectedResolution.servingUnit}
                     </p>
                   ) : null}
                 </div>
+
+                {item.alternatives.length > 1 ? (
+                  <label className="mt-3 grid gap-2 text-sm font-semibold text-ink">
+                    Match
+                    <select
+                      className="field"
+                      defaultValue={selectedMatchIndex}
+                      disabled={excludedIndexes.has(index)}
+                      name={`match_${index}`}
+                      onChange={(event) => {
+                        const nextMatch = Number(event.target.value);
+
+                        setReviewState((current) => ({
+                          draftKey,
+                          excludedIndexes:
+                            current.draftKey === draftKey
+                              ? current.excludedIndexes
+                              : new Set<number>(),
+                          matchSelections: {
+                            ...(current.draftKey === draftKey ? current.matchSelections : {}),
+                            [index]: nextMatch
+                          },
+                          unitEdits: current.draftKey === draftKey ? current.unitEdits : {}
+                        }));
+                      }}
+                    >
+                      {item.alternatives.map((alternative, alternativeIndex) => (
+                        <option key={formatMatchOptionKey(alternative)} value={alternativeIndex}>
+                          {formatMatchOptionLabel(alternative)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ) : item.alternatives.length === 1 ? (
+                  <input name={`match_${index}`} type="hidden" value="0" />
+                ) : null}
 
                 <div className="mt-3 grid grid-cols-[1fr_6.5rem] gap-3">
                   <label className="grid gap-2 text-sm font-semibold text-ink">
@@ -194,6 +245,8 @@ export function ConversationalFoodLogForm({ embedded = false }: ConversationalFo
                             current.draftKey === draftKey
                               ? current.excludedIndexes
                               : new Set<number>(),
+                          matchSelections:
+                            current.draftKey === draftKey ? current.matchSelections : {},
                           unitEdits: {
                             ...(current.draftKey === draftKey ? current.unitEdits : {}),
                             [index]: event.target.value
@@ -210,8 +263,9 @@ export function ConversationalFoodLogForm({ embedded = false }: ConversationalFo
                     {item.warning}
                   </p>
                 ) : null}
-              </article>
-            ))}
+                </article>
+              );
+            })}
           </div>
 
           {hasUnresolvedItems ? (
@@ -225,6 +279,30 @@ export function ConversationalFoodLogForm({ embedded = false }: ConversationalFo
               Change highlighted units to match their database serving unit before adding.
             </p>
           ) : null}
+
+          <div className="grid gap-2 rounded-md border border-white/70 bg-white/60 p-3">
+            <label className="flex items-center gap-2 text-sm font-semibold text-ink">
+              <input
+                checked={saveAsMeal}
+                className="size-4 accent-moss"
+                name="saveAsMeal"
+                onChange={(event) => setSaveAsMeal(event.target.checked)}
+                type="checkbox"
+              />
+              Save as reusable meal
+            </label>
+            <label className="grid gap-2 text-sm font-semibold text-ink">
+              Meal name
+              <input
+                className="field"
+                disabled={!saveAsMeal}
+                name="savedMealName"
+                placeholder="Usual breakfast"
+                required={saveAsMeal}
+                type="text"
+              />
+            </label>
+          </div>
 
           <button
             className="min-h-12 rounded-md bg-mint px-4 text-base font-semibold text-ink shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
@@ -260,4 +338,64 @@ function formatResolutionSource(item: NonNullable<ConversationalFoodLogState["dr
   }
 
   return getExternalFoodSourceLabel(item.externalSource);
+}
+
+function getSelectedMatchIndex(
+  item: NonNullable<ConversationalFoodLogState["draft"]>["items"][number],
+  selectedIndex: number | undefined
+) {
+  if (
+    selectedIndex !== undefined &&
+    selectedIndex >= 0 &&
+    selectedIndex < item.alternatives.length
+  ) {
+    return selectedIndex;
+  }
+
+  const resolvedKey = item.resolved ? formatMatchOptionKey(item.resolved) : null;
+  const resolvedIndex = item.alternatives.findIndex(
+    (alternative) => formatMatchOptionKey(alternative) === resolvedKey
+  );
+
+  return resolvedIndex >= 0 ? resolvedIndex : 0;
+}
+
+function getSelectedResolution(
+  item: NonNullable<ConversationalFoodLogState["draft"]>["items"][number],
+  selectedIndex: number | undefined
+) {
+  if (item.alternatives.length === 0) {
+    return item.resolved;
+  }
+
+  return item.alternatives[getSelectedMatchIndex(item, selectedIndex)] ?? item.resolved;
+}
+
+function formatMatchOptionKey(
+  item: NonNullable<ConversationalFoodLogState["draft"]>["items"][number]["resolved"]
+) {
+  if (!item) {
+    return "none";
+  }
+
+  if (item.kind === "saved_food") {
+    return `saved:${item.foodId}`;
+  }
+
+  if (item.kind === "estimated_food") {
+    return `estimated:${item.name}:${item.servingQuantity}:${item.servingUnit}`;
+  }
+
+  return `${item.externalSource}:${item.externalSourceId}`;
+}
+
+function formatMatchOptionLabel(
+  item: NonNullable<ConversationalFoodLogState["draft"]>["items"][number]["resolved"]
+) {
+  if (!item) {
+    return "No match";
+  }
+
+  const brand = item.brand ? ` · ${item.brand}` : "";
+  return `${item.name}${brand} · ${formatResolutionSource(item)} · ${Math.round(item.calories)} kcal/${item.servingQuantity}${item.servingUnit}`;
 }

@@ -68,6 +68,12 @@ OPENAI_FOOD_PARSER_MODEL=gpt-5-mini
 OPENAI_FOOD_ESTIMATOR_MODEL=gpt-5-mini
 ```
 
+Used server-side to sign confirmation drafts so browser edits are limited to the intended fields:
+
+```bash
+APP_DRAFT_SIGNING_SECRET=
+```
+
 Optional:
 
 ```bash
