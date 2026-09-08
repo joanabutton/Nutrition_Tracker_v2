@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 
+import { ConversationalFoodLogForm } from "@/components/conversational-food-log-form";
 import { FoodLogCard } from "@/components/food-log-card";
 import { NutritionCylinder } from "@/components/nutrition-cylinder";
 import { UnifiedFoodLogForm } from "@/components/unified-food-log-form";
@@ -163,6 +164,14 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
             {warning}
           </p>
         ))}
+        <details className="rounded-md border border-white/70 bg-white/60 p-3">
+          <summary className="cursor-pointer text-sm font-semibold text-ink">
+            Or describe a meal
+          </summary>
+          <div className="mt-3">
+            <ConversationalFoodLogForm embedded />
+          </div>
+        </details>
       </section>
 
       <section className="grid gap-3 rounded-lg bg-white/70 p-4 shadow-soft ring-1 ring-white/70">
