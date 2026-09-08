@@ -49,7 +49,7 @@ export function ExerciseLogForm() {
             <div className="grid grid-cols-[1fr_auto] items-center gap-2 rounded-md border border-ink/10 bg-white px-3">
               <input
                 className="min-h-11 w-full bg-transparent py-2 text-sm font-semibold text-ink outline-none"
-                min="0.01"
+                min="1"
                 name="durationMinutes"
                 step="1"
                 type="number"

@@ -89,7 +89,7 @@ export function ExerciseLogCard({ log }: ExerciseLogCardProps) {
                 <input
                   className="min-h-11 w-full bg-transparent py-2 text-sm font-semibold text-ink outline-none"
                   defaultValue={durationMinutes ?? ""}
-                  min="0.01"
+                  min="1"
                   name="durationMinutes"
                   step="1"
                   type="number"

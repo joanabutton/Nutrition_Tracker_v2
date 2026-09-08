@@ -59,7 +59,7 @@ export async function logManualExercise(formData: FormData) {
   try {
     type = readExerciseType(readRequiredString(formData, "type"));
     distanceKm = readExerciseDistance(formData, type);
-    durationMinutes = readOptionalPositiveNumber(formData, "durationMinutes");
+    durationMinutes = readOptionalPositiveInteger(formData, "durationMinutes");
   } catch (error) {
     redirectWithMessage("/today#log-exercise", getErrorMessage(error));
   }
@@ -105,7 +105,7 @@ export async function updateExerciseLog(formData: FormData) {
     logId = readRequiredString(formData, "logId");
     type = readExerciseType(readRequiredString(formData, "type"));
     distanceKm = readExerciseDistance(formData, type);
-    durationMinutes = readOptionalPositiveNumber(formData, "durationMinutes");
+    durationMinutes = readOptionalPositiveInteger(formData, "durationMinutes");
   } catch (error) {
     redirectWithMessage("/today#log-exercise", getErrorMessage(error));
   }
@@ -249,6 +249,16 @@ function readOptionalPositiveNumber(formData: FormData, key: string) {
 
   if (!Number.isFinite(value) || value <= 0) {
     throw new Error(`${key} must be greater than zero.`);
+  }
+
+  return value;
+}
+
+function readOptionalPositiveInteger(formData: FormData, key: string) {
+  const value = readOptionalPositiveNumber(formData, key);
+
+  if (value !== null && !Number.isInteger(value)) {
+    throw new Error(`${key} must be a whole number.`);
   }
 
   return value;
