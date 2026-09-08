@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 
 import {
   estimateExerciseCalories,
-  parseRunningExerciseText,
+  parseExerciseText,
   readExerciseType
 } from "@/lib/nutrition/exercise";
 import { getCurrentProfile } from "@/lib/profile";
@@ -15,10 +15,10 @@ export async function logExerciseFromText(formData: FormData) {
   const supabase = await createClient();
   const user = await requireUser(supabase);
   const profile = await requireProfile();
-  let parsed: ReturnType<typeof parseRunningExerciseText>;
+  let parsed: ReturnType<typeof parseExerciseText>;
 
   try {
-    parsed = parseRunningExerciseText(readRequiredString(formData, "exerciseText"));
+    parsed = parseExerciseText(readRequiredString(formData, "exerciseText"));
   } catch (error) {
     redirectWithMessage("/today#log-exercise", getErrorMessage(error));
   }

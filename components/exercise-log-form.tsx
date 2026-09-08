@@ -1,4 +1,5 @@
 import { logExerciseFromText, logManualExercise } from "@/app/(app)/exercise-actions";
+import { exerciseOptions } from "@/lib/nutrition/exercise";
 
 export function ExerciseLogForm() {
   return (
@@ -9,7 +10,7 @@ export function ExerciseLogForm() {
           <input
             className="field"
             name="exerciseText"
-            placeholder="Ran 4 km in 30 minutes"
+            placeholder="Walked 40 min, ran 4 km, yoga 30 min"
             required
           />
         </label>
@@ -26,7 +27,11 @@ export function ExerciseLogForm() {
           <label className="grid gap-2 text-sm font-semibold text-ink">
             Type
             <select className="field" name="type" required>
-              <option value="running">Running</option>
+              {exerciseOptions.map((option) => (
+                <option key={option.type} value={option.type}>
+                  {option.label}
+                </option>
+              ))}
             </select>
           </label>
           <div className="grid grid-cols-2 gap-2">

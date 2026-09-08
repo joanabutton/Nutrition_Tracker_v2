@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   estimateExerciseCalories,
+  parseExerciseText,
   parseRunningExerciseText
 } from "@/lib/nutrition/exercise";
 
@@ -20,6 +21,18 @@ describe("exercise logging", () => {
       type: "running",
       distanceKm: 3,
       durationMinutes: 25
+    });
+  });
+
+  it("parses supported non-running exercise text", () => {
+    expect(parseExerciseText("walked 40 minutes")).toMatchObject({
+      type: "walking",
+      distanceKm: null,
+      durationMinutes: 40
+    });
+    expect(parseExerciseText("housework and childcare 2 hours")).toMatchObject({
+      type: "housework_childcare",
+      durationMinutes: 120
     });
   });
 
@@ -47,7 +60,21 @@ describe("exercise logging", () => {
       })
     ).toEqual({
       caloriesEstimated: 291,
-      estimationMethod: "running_duration_met_8_3"
+      estimationMethod: "running_met_8_3"
+    });
+  });
+
+  it("estimates non-running calories from MET, duration, and body weight", () => {
+    expect(
+      estimateExerciseCalories({
+        type: "walking",
+        distanceKm: null,
+        durationMinutes: 40,
+        weightKg: 70
+      })
+    ).toEqual({
+      caloriesEstimated: 163,
+      estimationMethod: "walking_met_3_5"
     });
   });
 });

@@ -1,4 +1,5 @@
 import { deleteExerciseLog, updateExerciseLog } from "@/app/(app)/exercise-actions";
+import { exerciseOptions, readExerciseType } from "@/lib/nutrition/exercise";
 
 type ExerciseLogCardProps = {
   log: {
@@ -15,13 +16,15 @@ type ExerciseLogCardProps = {
 export function ExerciseLogCard({ log }: ExerciseLogCardProps) {
   const distanceKm = log.distance_km === null ? null : Number(log.distance_km);
   const durationMinutes = log.duration_minutes === null ? null : Number(log.duration_minutes);
+  const type = readExerciseType(log.type);
+  const exercise = exerciseOptions.find((option) => option.type === type);
 
   return (
     <details className="rounded-md border border-white/70 bg-white/82 px-4 py-3 shadow-sm">
       <summary className="cursor-pointer list-none">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-sm font-semibold capitalize text-ink">{log.type}</p>
+            <p className="text-sm font-semibold text-ink">{exercise?.label ?? log.type}</p>
             <p className="mt-1 text-sm text-ink/60">
               {formatExerciseDetail(distanceKm, durationMinutes)}
             </p>
@@ -42,7 +45,16 @@ export function ExerciseLogCard({ log }: ExerciseLogCardProps) {
 
         <form action={updateExerciseLog} className="mt-3 grid gap-3">
           <input name="logId" type="hidden" value={log.id} />
-          <input name="type" type="hidden" value="running" />
+          <label className="grid gap-2 text-sm font-semibold text-ink">
+            Type
+            <select className="field" defaultValue={type} name="type" required>
+              {exerciseOptions.map((option) => (
+                <option key={option.type} value={option.type}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
           <div className="grid grid-cols-2 gap-2">
             <label className="grid gap-2 text-sm font-semibold text-ink">
               Distance
@@ -110,6 +122,12 @@ function formatEstimationMethod(value: string) {
 
   if (value === "running_duration_met_8_3") {
     return "duration x running MET";
+  }
+
+  const option = exerciseOptions.find((exercise) => value.startsWith(`${exercise.type}_met_`));
+
+  if (option) {
+    return `duration x ${option.label.toLowerCase()} MET`;
   }
 
   return value;

@@ -1,4 +1,11 @@
-export type ExerciseType = "running";
+export type ExerciseType =
+  | "running"
+  | "walking"
+  | "cycling"
+  | "swimming"
+  | "strength_training"
+  | "yoga_pilates"
+  | "housework_childcare";
 
 export type ParsedExerciseLog = {
   type: ExerciseType;
@@ -21,40 +28,61 @@ export type ExerciseEstimate = {
 
 const runningKcalPerKgKm = 1;
 
-export function parseRunningExerciseText(input: string): ParsedExerciseLog {
+export const exerciseOptions: Array<{
+  type: ExerciseType;
+  label: string;
+  met: number;
+  aliases: string[];
+}> = [
+  { type: "running", label: "Running", met: 8.3, aliases: ["run", "ran", "running", "corrida", "corri", "correr"] },
+  { type: "walking", label: "Walking", met: 3.5, aliases: ["walk", "walked", "walking", "caminhada", "andei"] },
+  { type: "cycling", label: "Cycling", met: 6.8, aliases: ["cycle", "cycled", "cycling", "bike", "biked", "bicicleta"] },
+  { type: "swimming", label: "Swimming", met: 6, aliases: ["swim", "swam", "swimming", "natacao", "nadei"] },
+  { type: "strength_training", label: "Strength training", met: 3.5, aliases: ["weights", "strength", "gym", "musculacao"] },
+  { type: "yoga_pilates", label: "Yoga / Pilates", met: 2.5, aliases: ["yoga", "pilates"] },
+  {
+    type: "housework_childcare",
+    label: "Housework / childcare",
+    met: 3,
+    aliases: ["housework", "cleaning", "childcare", "house chores", "limpeza", "tarefas", "criancas"]
+  }
+];
+
+export function parseExerciseText(input: string): ParsedExerciseLog {
   const normalized = input
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase();
+  const option = exerciseOptions.find((exercise) =>
+    exercise.aliases.some((alias) => normalized.includes(alias))
+  );
   const distanceKm = readDistanceKm(normalized);
   const durationMinutes = readDurationMinutes(normalized);
 
-  if (!/\b(run|ran|running|corrida|corri|correr)\b/.test(normalized)) {
-    throw new Error("For now, describe running exercise, for example: ran 4 km in 30 minutes.");
+  if (!option) {
+    throw new Error("Choose or describe a supported exercise.");
   }
 
   if (distanceKm === null && durationMinutes === null) {
-    throw new Error("Add a distance, duration, or both for the run.");
+    throw new Error("Add a distance, duration, or both.");
   }
 
   return {
-    type: "running",
+    type: option.type,
     distanceKm,
     durationMinutes,
     originalText: input.trim()
   };
 }
 
-export function estimateExerciseCalories(input: ExerciseEstimateInput): ExerciseEstimate {
-  if (input.type !== "running") {
-    throw new Error("Only running estimates are supported right now.");
-  }
+export const parseRunningExerciseText = parseExerciseText;
 
+export function estimateExerciseCalories(input: ExerciseEstimateInput): ExerciseEstimate {
   if (!Number.isFinite(input.weightKg) || input.weightKg <= 0) {
     throw new Error("A current profile weight is required to estimate exercise calories.");
   }
 
-  if (input.distanceKm !== null) {
+  if (input.type === "running" && input.distanceKm !== null) {
     return {
       caloriesEstimated: Math.round(input.weightKg * input.distanceKm * runningKcalPerKgKm),
       estimationMethod: "running_distance_kcal_per_kg_km"
@@ -62,21 +90,33 @@ export function estimateExerciseCalories(input: ExerciseEstimateInput): Exercise
   }
 
   if (input.durationMinutes !== null) {
+    const option = getExerciseOption(input.type);
+
     return {
-      caloriesEstimated: Math.round(input.weightKg * (input.durationMinutes / 60) * 8.3),
-      estimationMethod: "running_duration_met_8_3"
+      caloriesEstimated: Math.round(input.weightKg * (input.durationMinutes / 60) * option.met),
+      estimationMethod: `${input.type}_met_${String(option.met).replace(".", "_")}`
     };
   }
 
-  throw new Error("Add a distance, duration, or both for the run.");
+  throw new Error(`${getExerciseOption(input.type).label} needs a duration to estimate calories.`);
 }
 
 export function readExerciseType(value: string): ExerciseType {
-  if (value === "running") {
-    return value;
+  if (exerciseOptions.some((option) => option.type === value)) {
+    return value as ExerciseType;
   }
 
   throw new Error("Exercise type is invalid.");
+}
+
+export function getExerciseOption(type: ExerciseType) {
+  const option = exerciseOptions.find((exercise) => exercise.type === type);
+
+  if (!option) {
+    throw new Error("Exercise type is invalid.");
+  }
+
+  return option;
 }
 
 function readDistanceKm(value: string) {
