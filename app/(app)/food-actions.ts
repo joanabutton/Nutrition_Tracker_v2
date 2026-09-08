@@ -1028,7 +1028,8 @@ function readAliases(formData: FormData, key: string) {
 }
 
 function readSavedMealItems(formData: FormData) {
-  const items = Array.from({ length: 4 }, (_, index) => {
+  const itemCount = Math.min(Math.max(Math.trunc(readPositiveNumber(formData, "itemCount")), 1), 25);
+  const items = Array.from({ length: itemCount }, (_, index) => {
     const foodId = String(formData.get(`foodId_${index}`) ?? "").trim();
 
     if (!foodId) {
