@@ -1,15 +1,17 @@
 import {
   deleteSavedMeal,
-  logSavedMeal,
-  updateSavedMeal
+  logSavedMeal
 } from "@/app/(app)/food-actions";
+import { type FoodRecord } from "@/lib/foods";
 import { type SavedMeal } from "@/lib/saved-meals";
+import { SavedMealForm } from "@/components/saved-meal-form";
 
 type SavedMealManagementCardProps = {
+  foods: FoodRecord[];
   meal: SavedMeal;
 };
 
-export function SavedMealManagementCard({ meal }: SavedMealManagementCardProps) {
+export function SavedMealManagementCard({ foods, meal }: SavedMealManagementCardProps) {
   return (
     <article className="grid gap-3 rounded-lg border border-white/70 bg-white/75 p-4 shadow-sm">
       <div className="flex items-start justify-between gap-3">
@@ -51,25 +53,9 @@ export function SavedMealManagementCard({ meal }: SavedMealManagementCardProps) 
         </button>
       </form>
 
-      <form action={updateSavedMeal} className="grid gap-2 border-t border-ink/10 pt-3">
-        <input name="savedMealId" type="hidden" value={meal.id} />
-        <label className="grid gap-2 text-sm font-semibold text-ink">
-          Name
-          <input className="field min-h-11 py-2 text-sm" defaultValue={meal.name} name="name" required />
-        </label>
-        <label className="grid gap-2 text-sm font-semibold text-ink">
-          Aliases
-          <input
-            className="field min-h-11 py-2 text-sm"
-            defaultValue={meal.aliases.join(", ")}
-            name="aliases"
-            placeholder="usual breakfast, porridge"
-          />
-        </label>
-        <button className="min-h-11 rounded-md border border-white/70 bg-white/75 px-3 text-sm font-semibold text-ink shadow-sm">
-          Update
-        </button>
-      </form>
+      <div className="border-t border-ink/10 pt-3">
+        <SavedMealForm foods={foods} meal={meal} />
+      </div>
     </article>
   );
 }

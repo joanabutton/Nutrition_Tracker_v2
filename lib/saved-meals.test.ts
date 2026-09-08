@@ -4,6 +4,7 @@ import {
   buildSavedMealDraftItems,
   calculateMealTotals,
   findSavedMealByText,
+  getSavedMealModificationTerms,
   type SavedMeal
 } from "@/lib/saved-meals";
 
@@ -98,6 +99,23 @@ describe("saved meals", () => {
     expect(items).toHaveLength(1);
     expect(items[0]?.resolved?.name).toBe("Oats");
     expect(items[0]?.warning).toContain("adjusted");
+  });
+
+  it("extracts saved meal replacement edits", () => {
+    expect(getSavedMealModificationTerms("usual breakfast but strawberries instead of banana")).toEqual({
+      omitTerms: [],
+      replacements: [{ add: "strawberries", remove: "banana" }]
+    });
+  });
+
+  it("removes replaced foods from a saved meal draft", () => {
+    const items = buildSavedMealDraftItems(
+      usualBreakfast,
+      "usual breakfast but strawberries instead of banana"
+    );
+
+    expect(items).toHaveLength(1);
+    expect(items[0]?.resolved?.name).toBe("Oats");
   });
 
   it("keeps unknown added sugar unknown when meal items include unknown values", () => {

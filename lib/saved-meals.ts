@@ -156,7 +156,11 @@ export function findSavedMealByText(meals: SavedMeal[], text: string) {
 }
 
 export function buildSavedMealDraftItems(meal: SavedMeal, text: string) {
-  const omitTerms = getOmitTerms(text);
+  const modifications = getSavedMealModificationTerms(text);
+  const omitTerms = [
+    ...modifications.omitTerms,
+    ...modifications.replacements.map((replacement) => replacement.remove)
+  ];
 
   return meal.items
     .filter((item) => !omitTerms.some((term) => savedMealItemMatchesTerm(item, term)))
@@ -240,10 +244,7 @@ function mapSavedMealItemRow(row: SavedMealItemRow): SavedMealItem[] {
   }
 
   const quantity = Number(row.quantity);
-  const nutrition =
-    normalize(row.unit) === normalize(food.serving_unit)
-      ? scaleFoodNutrition(food, quantity)
-      : scaleFoodNutrition(food, Number(food.serving_quantity));
+  const nutrition = scaleFoodNutrition(food, quantity);
 
   return [
     {
@@ -269,16 +270,12 @@ function hasItems(meal: SavedMeal) {
   return meal.items.length > 0;
 }
 
-function getOmitTerms(text: string) {
+export function getSavedMealModificationTerms(text: string) {
   const normalized = normalize(text);
-  const patterns = [
-    /\b(?:no|without|sem)\s+([^,.]+)/g,
-    /\binstead of\s+([^,.]+)/g,
-    /\bem vez de\s+([^,.]+)/g
-  ];
   const terms: string[] = [];
+  const replacements: Array<{ add: string; remove: string }> = [];
 
-  for (const pattern of patterns) {
+  for (const pattern of [/\b(?:no|without|sem)\s+([^,.]+)/g]) {
     let match = pattern.exec(normalized);
 
     while (match) {
@@ -290,7 +287,37 @@ function getOmitTerms(text: string) {
     }
   }
 
-  return terms;
+  for (const pattern of [
+    /\b([^,.]+?)\s+instead of\s+([^,.]+)/g,
+    /\b([^,.]+?)\s+em vez de\s+([^,.]+)/g
+  ]) {
+    let match = pattern.exec(normalized);
+
+    while (match) {
+      if (match[1] && match[2]) {
+        replacements.push({
+          add: cleanReplacementAddTerm(match[1]),
+          remove: match[2].trim()
+        });
+      }
+
+      match = pattern.exec(normalized);
+    }
+  }
+
+  return {
+    omitTerms: terms,
+    replacements: replacements.filter((replacement) => replacement.add && replacement.remove)
+  };
+}
+
+function cleanReplacementAddTerm(value: string) {
+  const afterConnector = value.split(/\b(?:but|with|add|swap|use)\b/g).at(-1) ?? value;
+
+  return afterConnector
+    .replace(/\b(?:and|log|my|the|a|an|o|os|as)\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function savedMealItemMatchesTerm(item: SavedMealItem, term: string) {

@@ -25,6 +25,7 @@ import {
   buildSavedMealDraftItems,
   findSavedMealByText,
   getSavedMeal,
+  getSavedMealModificationTerms,
   getSavedMeals
 } from "@/lib/saved-meals";
 import { createClient } from "@/lib/supabase/server";
@@ -504,23 +505,48 @@ export async function updateSavedMeal(formData: FormData) {
   let savedMealId: string;
   let name: string;
   let aliases: string[];
+  let items: Array<{ foodId: string; quantity: number; unit: string }>;
 
   try {
     savedMealId = readRequiredString(formData, "savedMealId");
     name = readRequiredString(formData, "name");
     aliases = readAliases(formData, "aliases");
+    items = readSavedMealItems(formData);
   } catch (error) {
     redirectWithMessage("/meals", getErrorMessage(error));
   }
 
-  const { error } = await supabase
-    .from("saved_meals")
-    .update({ name, aliases })
-    .eq("id", savedMealId)
-    .eq("user_id", user.id);
+  try {
+    await validateSavedMealItems(supabase, user.id, items);
 
-  if (error) {
-    redirectWithMessage("/meals", error.message);
+    const { data: meal, error: mealError } = await supabase
+      .from("saved_meals")
+      .update({ name, aliases })
+      .eq("id", savedMealId)
+      .eq("user_id", user.id)
+      .select("id")
+      .maybeSingle();
+
+    if (mealError) {
+      throw new Error(mealError.message);
+    }
+
+    if (!meal) {
+      throw new Error("Saved meal could not be found.");
+    }
+
+    const { error: deleteError } = await supabase
+      .from("saved_meal_items")
+      .delete()
+      .eq("saved_meal_id", savedMealId);
+
+    if (deleteError) {
+      throw new Error(deleteError.message);
+    }
+
+    await insertSavedMealItems(supabase, savedMealId, items);
+  } catch (error) {
+    redirectWithMessage("/meals", getErrorMessage(error));
   }
 
   revalidateFoodPaths();
@@ -822,15 +848,7 @@ async function createSavedMealFromItems(
   aliases: string[],
   items: Array<{ foodId: string; quantity: number; unit: string }>
 ) {
-  await Promise.all(
-    items.map(async (item) => {
-      const food = await getFoodForLogging(supabase, item.foodId, userId);
-
-      if (!food) {
-        throw new Error("One of the selected foods could not be found.");
-      }
-    })
-  );
+  await validateSavedMealItems(supabase, userId, items);
 
   const { data: meal, error: mealError } = await supabase
     .from("saved_meals")
@@ -846,18 +864,48 @@ async function createSavedMealFromItems(
     throw new Error(mealError.message);
   }
 
-  const { error: itemError } = await supabase.from("saved_meal_items").insert(
+  await insertSavedMealItems(supabase, meal.id, items);
+}
+
+async function insertSavedMealItems(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  savedMealId: string,
+  items: Array<{ foodId: string; quantity: number; unit: string }>
+) {
+  const { error } = await supabase.from("saved_meal_items").insert(
     items.map((item) => ({
-      saved_meal_id: meal.id,
+      saved_meal_id: savedMealId,
       food_id: item.foodId,
       quantity: item.quantity,
       unit: item.unit
     }))
   );
 
-  if (itemError) {
-    throw new Error(itemError.message);
+  if (error) {
+    throw new Error(error.message);
   }
+}
+
+async function validateSavedMealItems(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  items: Array<{ foodId: string; quantity: number; unit: string }>
+) {
+  await Promise.all(
+    items.map(async (item) => {
+      const food = await getFoodForLogging(supabase, item.foodId, userId);
+
+      if (!food) {
+        throw new Error("One of the selected foods could not be found.");
+      }
+
+      if (normalizeUnit(item.unit) !== normalizeUnit(food.serving_unit)) {
+        throw new Error(
+          `${formatFoodName(food.name, food.brand)} is saved per ${food.serving_unit}. Use ${food.serving_unit} for saved meals.`
+        );
+      }
+    })
+  );
 }
 
 async function resolveSavedMealDraft(input: string): Promise<ConversationalFoodDraft | null> {
@@ -868,7 +916,23 @@ async function resolveSavedMealDraft(input: string): Promise<ConversationalFoodD
     return null;
   }
 
-  const items = buildSavedMealDraftItems(meal, input);
+  const items: ConversationalFoodDraftItem[] = buildSavedMealDraftItems(meal, input);
+  const replacements = getSavedMealModificationTerms(input).replacements;
+
+  for (const replacement of replacements) {
+    const replacementDraft = await resolveParsedFoodLog(
+      await parseFoodLogText(replacement.add),
+      replacement.add
+    );
+    items.push(
+      ...replacementDraft.items.map((item) => ({
+        ...item,
+        warning: item.warning
+          ? `Replacement for ${replacement.remove}. ${item.warning}`
+          : `Replacement for ${replacement.remove}.`
+      }))
+    );
+  }
 
   if (items.length === 0) {
     throw new Error("That saved meal would have no foods after your changes.");
@@ -1031,8 +1095,13 @@ function readSavedMealItems(formData: FormData) {
   const itemCount = Math.min(Math.max(Math.trunc(readPositiveNumber(formData, "itemCount")), 1), 25);
   const items = Array.from({ length: itemCount }, (_, index) => {
     const foodId = String(formData.get(`foodId_${index}`) ?? "").trim();
+    const foodText = String(formData.get(`foodText_${index}`) ?? "").trim();
 
     if (!foodId) {
+      if (foodText) {
+        throw new Error(`Choose a matching saved food for "${foodText}".`);
+      }
+
       return null;
     }
 
@@ -1048,6 +1117,10 @@ function readSavedMealItems(formData: FormData) {
   }
 
   return items;
+}
+
+function normalizeUnit(value: string) {
+  return value.trim().toLowerCase();
 }
 
 function readDraftMatchSelections(formData: FormData, itemCount: number) {

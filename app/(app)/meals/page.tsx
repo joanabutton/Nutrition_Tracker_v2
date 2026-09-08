@@ -58,7 +58,7 @@ export default async function MealsPage({ searchParams }: MealsPageProps) {
         {meals.length > 0 ? (
           <div className="grid gap-3">
             {meals.map((meal) => (
-              <SavedMealManagementCard key={meal.id} meal={meal} />
+              <SavedMealManagementCard foods={foods} key={meal.id} meal={meal} />
             ))}
           </div>
         ) : (
