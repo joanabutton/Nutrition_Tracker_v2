@@ -18,6 +18,7 @@ export type WeightTrend = {
 };
 
 const dayMs = 24 * 60 * 60 * 1000;
+const minimumThirtyDayTrendSpan = 14 * dayMs;
 
 export async function getWeightTrend(limit = 120): Promise<WeightTrend> {
   const supabase = await createClient();
@@ -60,7 +61,7 @@ export function calculateWeightTrend(logs: WeightLog[]): WeightTrend {
 
   return {
     latestWeightKg: Number(latest.weight_kg),
-    sevenDayAverageKg: sevenDayLogs.length >= 2 ? averageWeight(sevenDayLogs) : null,
+    sevenDayAverageKg: calculateDailyAverage(sevenDayLogs),
     thirtyDayTrendKg,
     thirtyDayTrendDirection: getTrendDirection(thirtyDayTrendKg),
     history: sortedDescending
@@ -98,12 +99,47 @@ function calculateTrendKg(logs: WeightLog[]) {
     return null;
   }
 
+  if (Date.parse(latest.logged_at) - Date.parse(first.logged_at) < minimumThirtyDayTrendSpan) {
+    return null;
+  }
+
   return roundWeight(Number(latest.weight_kg) - Number(first.weight_kg));
 }
 
-function averageWeight(logs: WeightLog[]) {
-  const total = logs.reduce((sum, log) => sum + Number(log.weight_kg), 0);
-  return roundWeight(total / logs.length);
+function calculateDailyAverage(logs: WeightLog[]) {
+  const dailyWeights = new Map<string, number[]>();
+
+  for (const log of logs) {
+    const key = getWeightDateKey(log.logged_at);
+    const weights = dailyWeights.get(key) ?? [];
+    weights.push(Number(log.weight_kg));
+    dailyWeights.set(key, weights);
+  }
+
+  const dailyAverages = Array.from(dailyWeights.values()).map((weights) => averageNumbers(weights));
+
+  if (dailyAverages.length < 2) {
+    return null;
+  }
+
+  return roundWeight(averageNumbers(dailyAverages));
+}
+
+function averageNumbers(values: number[]) {
+  const total = values.reduce((sum, value) => sum + value, 0);
+  return total / values.length;
+}
+
+function getWeightDateKey(value: string) {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "2-digit",
+    timeZone: getAppTimeZone(),
+    year: "numeric"
+  }).formatToParts(new Date(value));
+  const lookup = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+
+  return `${lookup.year}-${lookup.month}-${lookup.day}`;
 }
 
 function getTrendDirection(value: number | null): WeightTrend["thirtyDayTrendDirection"] {

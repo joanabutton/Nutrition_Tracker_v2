@@ -35,6 +35,18 @@ describe("weight trend calculations", () => {
     });
   });
 
+  it("weights each day once in the seven-day moving average", () => {
+    expect(
+      calculateWeightTrend([
+        weightLog("morning", "2026-09-07T08:00:00Z", 70),
+        weightLog("evening", "2026-09-07T20:00:00Z", 71),
+        weightLog("latest", "2026-09-08T08:00:00Z", 69.8)
+      ])
+    ).toMatchObject({
+      sevenDayAverageKg: 70.2
+    });
+  });
+
   it("calculates a thirty-day trend direction", () => {
     expect(
       calculateWeightTrend([
@@ -50,6 +62,18 @@ describe("weight trend calculations", () => {
   it("avoids a thirty-day trend with only one recent log", () => {
     expect(
       calculateWeightTrend([weightLog("latest", "2026-09-08T08:00:00Z", 69.8)])
+    ).toMatchObject({
+      thirtyDayTrendKg: null,
+      thirtyDayTrendDirection: null
+    });
+  });
+
+  it("avoids a thirty-day trend when entries do not span enough time", () => {
+    expect(
+      calculateWeightTrend([
+        weightLog("start", "2026-09-07T08:00:00Z", 71.2),
+        weightLog("latest", "2026-09-08T08:00:00Z", 69.8)
+      ])
     ).toMatchObject({
       thirtyDayTrendKg: null,
       thirtyDayTrendDirection: null
