@@ -357,6 +357,70 @@ export async function logFood(formData: FormData) {
   redirectWithMessage("/today", "Food logged.");
 }
 
+export async function logSelectedFood(formData: FormData) {
+  const supabase = await createClient();
+  const user = await requireUser(supabase);
+  let quantity: number;
+  let mealType: MealType;
+  let match: FoodMatchSelection;
+
+  try {
+    match = readFoodMatchSelection(formData);
+    quantity = readPositiveNumber(formData, "quantity");
+    mealType = readMealType(formData);
+  } catch (error) {
+    redirectWithMessage("/today#log-food", getErrorMessage(error));
+  }
+
+  try {
+    const food =
+      match.kind === "saved"
+        ? await getFoodForLogging(supabase, match.foodId, user.id)
+        : await findOrCreateExternalFood(
+            supabase,
+            user.id,
+            match.externalSource,
+            match.externalSourceId
+          );
+
+    if (!food) {
+      throw new Error("Food could not be found.");
+    }
+
+    const nutrition = scaleFoodNutrition(food, quantity);
+    const { error } = await supabase.from("food_logs").insert({
+      user_id: user.id,
+      meal_type: mealType,
+      food_id: food.id,
+      display_name: formatFoodName(food.name, food.brand),
+      quantity,
+      unit: food.serving_unit,
+      nutrition_source: food.source,
+      ...nutrition
+    });
+
+    if (error) {
+      throw new Error(error.message);
+    }
+  } catch (error) {
+    redirectWithMessage("/today#log-food", getErrorMessage(error));
+  }
+
+  revalidateFoodPaths();
+  redirectWithMessage("/today#log-food", "Food logged.");
+}
+
+type FoodMatchSelection =
+  | {
+      kind: "saved";
+      foodId: string;
+    }
+  | {
+      kind: "external";
+      externalSource: ExternalFoodSource;
+      externalSourceId: string;
+    };
+
 export async function updateFoodLog(formData: FormData) {
   const supabase = await createClient();
   const user = await requireUser(supabase);
@@ -451,15 +515,21 @@ function revalidateFoodPaths() {
 
 async function getFoodForLogging(
   supabase: Awaited<ReturnType<typeof createClient>>,
-  foodId: string
+  foodId: string,
+  userId?: string
 ) {
-  const { data, error } = await supabase
+  let request = supabase
     .from("foods")
     .select(
       "id,name,brand,source,serving_quantity,serving_unit,calories,protein_g,carbohydrate_g,fat_g,saturated_fat_g,fibre_g,added_sugar_g"
     )
-    .eq("id", foodId)
-    .maybeSingle();
+    .eq("id", foodId);
+
+  if (userId) {
+    request = request.or(`user_id.eq.${userId},user_id.is.null`);
+  }
+
+  const { data, error } = await request.maybeSingle();
 
   if (error) {
     throw new Error(error.message);
@@ -626,7 +696,8 @@ async function requireUser(supabase: Awaited<ReturnType<typeof createClient>>) {
 }
 
 function redirectWithMessage(path: string, message: string): never {
-  redirect(`${path}?message=${encodeURIComponent(message)}`);
+  const [pathname, hash] = path.split("#");
+  redirect(`${pathname}?message=${encodeURIComponent(message)}${hash ? `#${hash}` : ""}`);
 }
 
 function readRequiredString(formData: FormData, key: string) {
@@ -705,6 +776,30 @@ function readMealType(formData: FormData): MealType {
   return value as MealType;
 }
 
+function readFoodMatchSelection(formData: FormData): FoodMatchSelection {
+  const value = readRequiredString(formData, "foodMatch");
+  const [kind, sourceOrId, encodedId] = value.split(":");
+
+  if (kind === "saved" && sourceOrId) {
+    return {
+      kind: "saved",
+      foodId: sourceOrId
+    };
+  }
+
+  if (kind === "external" && sourceOrId && encodedId) {
+    const externalSource = readExternalFoodSourceValue(sourceOrId);
+
+    return {
+      kind: "external",
+      externalSource,
+      externalSourceId: decodeURIComponent(encodedId)
+    };
+  }
+
+  throw new Error("Selected food is invalid.");
+}
+
 function readDraftMatchSelections(formData: FormData, itemCount: number) {
   return Array.from({ length: itemCount }, (_, index) => {
     const raw = String(formData.get(`match_${index}`) ?? "").trim();
@@ -724,8 +819,10 @@ function readDraftMatchSelections(formData: FormData, itemCount: number) {
 }
 
 function readExternalFoodSource(formData: FormData): ExternalFoodSource {
-  const value = String(formData.get("externalSource") ?? "");
+  return readExternalFoodSourceValue(String(formData.get("externalSource") ?? ""));
+}
 
+function readExternalFoodSourceValue(value: string): ExternalFoodSource {
   if (
     value === "open_food_facts" ||
     value === "usda_fooddata_central" ||

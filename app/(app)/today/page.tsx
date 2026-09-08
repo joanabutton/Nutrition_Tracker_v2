@@ -1,12 +1,16 @@
 import { redirect } from "next/navigation";
 
-import { ConversationalFoodLogForm } from "@/components/conversational-food-log-form";
 import { FoodLogCard } from "@/components/food-log-card";
 import { NutritionCylinder } from "@/components/nutrition-cylinder";
+import { UnifiedFoodLogForm } from "@/components/unified-food-log-form";
 import { getTodayDashboard } from "@/lib/dashboard";
+import { getFoods } from "@/lib/foods";
+import { searchExternalFoods } from "@/lib/nutrition/external-foods";
+import { searchReferenceFoods } from "@/lib/reference-foods";
 
 type TodayPageProps = {
   searchParams: Promise<{
+    foodQuery?: string;
     message?: string;
   }>;
 };
@@ -23,13 +27,25 @@ const mealSections: Array<{ type: MealType; label: string }> = [
 ];
 
 export default async function TodayPage({ searchParams }: TodayPageProps) {
-  const [dashboard, { message }] = await Promise.all([getTodayDashboard(), searchParams]);
+  const { foodQuery = "", message } = await searchParams;
+  const trimmedFoodQuery = foodQuery.trim();
+  const [dashboard, savedFoods, referenceResult, externalResult] = await Promise.all([
+    getTodayDashboard(),
+    getFoods({ limit: trimmedFoodQuery ? 20 : 8, query: trimmedFoodQuery }),
+    trimmedFoodQuery
+      ? searchReferenceFoods(trimmedFoodQuery)
+      : Promise.resolve({ foods: [], warnings: [] }),
+    trimmedFoodQuery
+      ? searchExternalFoods(trimmedFoodQuery)
+      : Promise.resolve({ foods: [], warnings: [] })
+  ]);
 
   if (!dashboard || !dashboard.profile) {
     redirect("/onboarding");
   }
 
   const { profile, foodTotals } = dashboard;
+  const databaseFoods = [...referenceResult.foods, ...externalResult.foods];
 
   return (
     <section className="grid gap-5" id="top">
@@ -134,7 +150,19 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
         <div>
           <h2 className="text-lg font-semibold text-ink">Log food</h2>
         </div>
-        <ConversationalFoodLogForm embedded />
+        <UnifiedFoodLogForm
+          databaseFoods={databaseFoods}
+          query={trimmedFoodQuery}
+          savedFoods={savedFoods}
+        />
+        {[...referenceResult.warnings, ...externalResult.warnings].map((warning) => (
+          <p
+            className="rounded-md border border-butter/70 bg-butter/35 px-3 py-2 text-sm text-ink/70"
+            key={warning}
+          >
+            {warning}
+          </p>
+        ))}
       </section>
 
       <section className="grid gap-3 rounded-lg bg-white/70 p-4 shadow-soft ring-1 ring-white/70">
