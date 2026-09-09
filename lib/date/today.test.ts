@@ -4,7 +4,7 @@ import { getTodayRange } from "@/lib/date/today";
 
 describe("today range", () => {
   it("uses the configured time zone for the dashboard day", () => {
-    const range = getTodayRange("Europe/London", new Date("2026-09-07T22:30:00.000Z"));
+    const range = getTodayRange("Europe/Lisbon", new Date("2026-09-07T22:30:00.000Z"));
 
     expect(range.label).toBe("Monday 7 September");
     expect(range.start.toISOString()).toBe("2026-09-06T23:00:00.000Z");

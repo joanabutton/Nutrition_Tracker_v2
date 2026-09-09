@@ -1,4 +1,4 @@
-const defaultAppTimeZone = "Europe/London";
+const defaultAppTimeZone = "Europe/Lisbon";
 const defaultOpenFoodFactsUserAgent =
   "NutritionTracker/0.1 (production; contact unavailable)";
 const defaultFoodParserModel = "gpt-5-mini";

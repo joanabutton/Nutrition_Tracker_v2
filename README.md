@@ -23,7 +23,7 @@ Copy-Item .env.example .env.local
 ```
 
 3. Create a Supabase project, then add the project URL and anon key to `.env.local`.
-   Leave `APP_TIME_ZONE=Europe/London` unless you want dashboard days calculated in a different timezone.
+   Leave `APP_TIME_ZONE=Europe/Lisbon` unless you want dashboard days calculated in a different timezone.
 
 4. Apply the SQL migrations in `supabase/migrations` using the Supabase SQL editor or Supabase CLI.
 
@@ -81,7 +81,7 @@ APP_DRAFT_SIGNING_SECRET=
 Optional app behaviour:
 
 ```bash
-APP_TIME_ZONE=Europe/London
+APP_TIME_ZONE=Europe/Lisbon
 ```
 
 ## Production Deployment Notes
