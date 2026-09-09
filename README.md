@@ -64,7 +64,7 @@ Used only by local import scripts. Keep this server-side/local only, and never e
 SUPABASE_SERVICE_ROLE_KEY=
 ```
 
-Used by server-side conversational food parsing. Do not expose this in client code:
+Used by server-side conversational food parsing and estimated fallback. Do not expose this in client code:
 
 ```bash
 OPENAI_API_KEY=
@@ -78,12 +78,42 @@ Used server-side to sign confirmation drafts so browser edits are limited to the
 APP_DRAFT_SIGNING_SECRET=
 ```
 
-Optional:
+Optional app behaviour:
 
 ```bash
-NEXT_PUBLIC_APP_URL=http://localhost:3000
 APP_TIME_ZONE=Europe/London
 ```
+
+## Production Deployment Notes
+
+Vercel should build this app with the default Next.js settings:
+
+```bash
+npm install
+npm run build
+```
+
+Add environment variables in Vercel Project Settings -> Environment Variables. Only
+`NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` are intended to be public in
+browser code. Keep `OPENAI_API_KEY`, `USDA_FOODDATA_API_KEY`, `OPEN_FOOD_FACTS_USER_AGENT`,
+`APP_DRAFT_SIGNING_SECRET`, `APP_TIME_ZONE`, and `SUPABASE_SERVICE_ROLE_KEY` server-side only.
+
+`SUPABASE_SERVICE_ROLE_KEY` is not required for the deployed app's normal user flows. Add it to
+Vercel only if you intentionally add production server code that performs privileged maintenance.
+The current PortFIR import script is a local operation and should be run from your machine.
+
+Before using the production URL, open Supabase -> Authentication -> URL Configuration:
+
+- Set Site URL to the Vercel production URL.
+- Add the Vercel production URL and any preview URLs you plan to use to Redirect URLs.
+- If this remains a private one-user app, disable public sign-ups after creating your user, or keep
+  sign-ups enabled only while you need to create the account.
+
+Apply database migrations through Supabase migrations or the SQL editor in order. The migrations
+create tables, indexes, policies, and shared reference-food lookup structures; they do not contain
+table drops, truncates, resets, or data deletes. Do not rerun one-off `create type` / `create table`
+statements manually against an already migrated database unless you first confirm which migrations
+Supabase has already applied.
 
 ## Available Scripts
 

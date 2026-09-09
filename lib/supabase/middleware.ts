@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 
-import { getMissingSupabaseClientEnv, getSupabaseClientEnv } from "@/lib/env";
+import { getMissingSupabaseClientEnv, getSupabaseClientEnv } from "@/lib/supabase/env";
 
 export async function updateSession(request: NextRequest) {
   const isAuthRoute = request.nextUrl.pathname.startsWith("/login");

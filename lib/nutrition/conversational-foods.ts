@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from "crypto";
 
+import { getDraftSigningSecret } from "@/lib/env";
 import {
   estimateFoodFallbacks,
   type FoodFallbackRequestItem
@@ -668,16 +669,6 @@ function isValidDraftSignature(payload: string, signature: string) {
     expectedBuffer.length === actualBuffer.length &&
     timingSafeEqual(expectedBuffer, actualBuffer)
   );
-}
-
-function getDraftSigningSecret() {
-  const secret = process.env.APP_DRAFT_SIGNING_SECRET || process.env.OPENAI_API_KEY;
-
-  if (!secret) {
-    throw new Error("APP_DRAFT_SIGNING_SECRET or OPENAI_API_KEY is required to sign food log drafts.");
-  }
-
-  return secret;
 }
 
 function readPositiveNumber(value: unknown, label: string) {
