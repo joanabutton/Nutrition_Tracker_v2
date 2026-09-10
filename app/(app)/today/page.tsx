@@ -298,6 +298,7 @@ function groupFoodLogsByMeal(foodLogs: TodayFoodLog[]) {
       label,
       logs: foodLogs.filter((log) => log.meal_type === type)
     }))
+    .filter((section) => section.logs.length > 0)
     .map((section) => ({
       ...section,
       calories: section.logs.reduce((total, log) => total + Number(log.calories), 0),
@@ -305,8 +306,7 @@ function groupFoodLogsByMeal(foodLogs: TodayFoodLog[]) {
         (first, log) => (new Date(log.logged_at) < new Date(first) ? log.logged_at : first),
         section.logs[0].logged_at
       )
-    }))
-    .filter((section) => section.logs.length > 0);
+    }));
 }
 
 function formatLoggedTime(value: string) {
