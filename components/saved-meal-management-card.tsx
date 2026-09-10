@@ -53,9 +53,24 @@ export function SavedMealManagementCard({ foods, meal }: SavedMealManagementCard
         </button>
       </form>
 
-      <div className="border-t border-ink/10 pt-3">
-        <SavedMealForm foods={foods} meal={meal} />
-      </div>
+      <details className="group border-t border-ink/10 pt-3">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-md border border-white/70 bg-white/75 px-3 text-sm font-semibold text-ink shadow-sm">
+          Edit saved meal
+          <svg
+            aria-hidden="true"
+            className="size-4 shrink-0 transition-transform group-open:rotate-180"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            viewBox="0 0 24 24"
+          >
+            <path d="m6 9 6 6 6-6" />
+          </svg>
+        </summary>
+        <div className="pt-3">
+          <SavedMealForm foods={foods} meal={meal} />
+        </div>
+      </details>
     </article>
   );
 }

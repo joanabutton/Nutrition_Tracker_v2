@@ -49,14 +49,13 @@ export function SavedMealForm({ foods, meal }: SavedMealFormProps) {
 
   return (
     <form action={action} className={formClassName}>
-      <div>
-        <h2 className="text-lg font-semibold text-ink">
-          {meal ? "Edit saved meal" : "Create saved meal"}
-        </h2>
-        <p className="mt-1 text-sm leading-6 text-ink/60">
-          Build a reusable meal from foods you have already saved.
-        </p>
-      </div>
+      {!meal ? (
+        <div>
+          <p className="text-sm leading-6 text-ink/60">
+            Build a reusable meal from foods you have already saved.
+          </p>
+        </div>
+      ) : null}
 
       {meal ? <input name="savedMealId" type="hidden" value={meal.id} /> : null}
 

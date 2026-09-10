@@ -32,6 +32,25 @@ export default async function MealsPage({ searchParams }: MealsPageProps) {
         </p>
       ) : null}
 
+      <details className="group rounded-lg bg-white/80 shadow-soft ring-1 ring-white/70">
+        <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 px-4 text-lg font-semibold text-ink">
+          Create saved meal
+          <svg
+            aria-hidden="true"
+            className="size-5 shrink-0 transition-transform group-open:rotate-180"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            viewBox="0 0 24 24"
+          >
+            <path d="m6 9 6 6 6-6" />
+          </svg>
+        </summary>
+        <div className="border-t border-ink/10 p-4">
+          <SavedMealForm foods={foods} />
+        </div>
+      </details>
+
       <section className="grid gap-3">
         <div className="flex items-center justify-between gap-4">
           <h2 className="text-lg font-semibold text-ink">Saved meals</h2>
@@ -71,7 +90,6 @@ export default async function MealsPage({ searchParams }: MealsPageProps) {
         )}
       </section>
 
-      <SavedMealForm foods={foods} />
     </section>
   );
 }
