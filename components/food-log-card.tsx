@@ -1,9 +1,10 @@
 import { deleteFoodLog, updateFoodLog } from "@/app/(app)/food-actions";
+import { getMealTypeLabel, mealTypeOptions, type MealType } from "@/lib/meal-types";
 
 type FoodLogCardProps = {
   log: {
     id: string;
-    meal_type: "breakfast" | "lunch" | "dinner" | "snack";
+    meal_type: MealType;
     display_name: string;
     quantity: number | string;
     unit: string;
@@ -21,8 +22,8 @@ export function FoodLogCard({ log }: FoodLogCardProps) {
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-sm font-semibold text-ink">{log.display_name}</p>
-            <p className="mt-1 text-sm capitalize text-ink/60">
-              {log.meal_type} · {Number(log.quantity)} {log.unit}
+            <p className="mt-1 text-sm text-ink/60">
+              {getMealTypeLabel(log.meal_type)} · {Number(log.quantity)} {log.unit}
             </p>
           </div>
           <p className="text-sm font-semibold text-ink">{Math.round(Number(log.calories))} kcal</p>
@@ -52,10 +53,9 @@ export function FoodLogCard({ log }: FoodLogCardProps) {
           <label className="grid gap-2 text-sm font-semibold text-ink">
             Meal
             <select className="field" defaultValue={log.meal_type} name="mealType" required>
-              <option value="breakfast">Breakfast</option>
-              <option value="lunch">Lunch</option>
-              <option value="dinner">Dinner</option>
-              <option value="snack">Snack</option>
+              {mealTypeOptions.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
             </select>
           </label>
           <button className="min-h-11 rounded-md bg-mint px-3 text-sm font-semibold text-ink shadow-sm">

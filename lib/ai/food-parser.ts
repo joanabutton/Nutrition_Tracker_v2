@@ -1,4 +1,5 @@
 import { getFoodParserModel, getOpenAiApiKey } from "@/lib/env";
+import { isMealType, mealTypes, type MealType } from "@/lib/meal-types";
 
 export type ParsedFoodItem = {
   name: string;
@@ -9,7 +10,7 @@ export type ParsedFoodItem = {
 };
 
 export type ParsedFoodLog = {
-  mealType: "breakfast" | "lunch" | "dinner" | "snack";
+  mealType: MealType;
   items: ParsedFoodItem[];
 };
 
@@ -37,7 +38,7 @@ const foodLogSchema = {
   properties: {
     mealType: {
       type: "string",
-      enum: ["breakfast", "lunch", "dinner", "snack"]
+      enum: mealTypes
     },
     items: {
       type: "array",
@@ -199,10 +200,6 @@ export function readStructuredResponseText(body: ResponsesApiBody) {
   }
 
   return text;
-}
-
-function isMealType(value: unknown): value is ParsedFoodLog["mealType"] {
-  return value === "breakfast" || value === "lunch" || value === "dinner" || value === "snack";
 }
 
 function normalizeUnit(value: string) {

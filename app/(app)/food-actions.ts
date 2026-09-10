@@ -21,6 +21,7 @@ import {
   type ConversationalFoodDraftItem
 } from "@/lib/nutrition/conversational-foods";
 import { getReferenceFoodCandidate, isReferenceFoodSource } from "@/lib/reference-foods";
+import { isMealType, type MealType } from "@/lib/meal-types";
 import {
   buildSavedMealDraftItems,
   findSavedMealByText,
@@ -29,10 +30,6 @@ import {
   getSavedMeals
 } from "@/lib/saved-meals";
 import { createClient } from "@/lib/supabase/server";
-
-type MealType = "breakfast" | "lunch" | "dinner" | "snack";
-
-const mealTypes: MealType[] = ["breakfast", "lunch", "dinner", "snack"];
 
 type PreparedConversationalFoodLogItem = {
   foodId: string | null;
@@ -241,6 +238,30 @@ export async function saveExternalFood(formData: FormData) {
 
   revalidateFoodPaths();
   redirectWithMessage("/foods", "Food saved from lookup.");
+}
+
+export async function saveExternalFoodForSavedMeal(formData: FormData) {
+  const supabase = await createClient();
+  const user = await requireUser(supabase);
+  const foodQuery = readOptionalString(formData, "foodQuery") ?? "";
+  let externalSource: ExternalFoodSource;
+  let externalSourceId: string;
+
+  try {
+    externalSource = readExternalFoodSource(formData);
+    externalSourceId = readRequiredString(formData, "externalSourceId");
+  } catch (error) {
+    redirectToSavedMealBuilder(foodQuery, getErrorMessage(error));
+  }
+
+  try {
+    await findOrCreateExternalFood(supabase, user.id, externalSource, externalSourceId);
+  } catch (error) {
+    redirectToSavedMealBuilder(foodQuery, getErrorMessage(error));
+  }
+
+  revalidateFoodPaths();
+  redirectToSavedMealBuilder(foodQuery, "Food added. Select it below to include it in your meal.");
 }
 
 export async function updateFood(formData: FormData) {
@@ -955,12 +976,32 @@ function inferMealType(input: string): MealType {
     return "breakfast";
   }
 
+  if (normalized.includes("elevenses")) {
+    return "elevenses";
+  }
+
   if (normalized.includes("lunch") || normalized.includes("almoco")) {
     return "lunch";
   }
 
   if (normalized.includes("dinner") || normalized.includes("jantar")) {
     return "dinner";
+  }
+
+  if (normalized.includes("pre-run") || normalized.includes("pre run")) {
+    return "pre_run_snack";
+  }
+
+  if (normalized.includes("post-run") || normalized.includes("post run")) {
+    return "post_run_snack";
+  }
+
+  if (normalized.includes("mid afternoon") || normalized.includes("afternoon meal")) {
+    return "mid_afternoon_meal";
+  }
+
+  if (normalized.includes("supper")) {
+    return "supper";
   }
 
   return "snack";
@@ -981,6 +1022,16 @@ async function requireUser(supabase: Awaited<ReturnType<typeof createClient>>) {
 function redirectWithMessage(path: string, message: string): never {
   const [pathname, hash] = path.split("#");
   redirect(`${pathname}?message=${encodeURIComponent(message)}${hash ? `#${hash}` : ""}`);
+}
+
+function redirectToSavedMealBuilder(foodQuery: string, message: string): never {
+  const params = new URLSearchParams({ message });
+
+  if (foodQuery.trim()) {
+    params.set("foodQuery", foodQuery.trim());
+  }
+
+  redirect(`/meals?${params.toString()}`);
 }
 
 function readRequiredString(formData: FormData, key: string) {
@@ -1052,7 +1103,7 @@ function readNumber(formData: FormData, key: string) {
 function readMealType(formData: FormData): MealType {
   const value = String(formData.get("mealType") ?? "");
 
-  if (!mealTypes.includes(value as MealType)) {
+  if (!isMealType(value)) {
     throw new Error("mealType is invalid.");
   }
 

@@ -1,5 +1,6 @@
 import { logSavedMeal } from "@/app/(app)/food-actions";
 import { type SavedMeal } from "@/lib/saved-meals";
+import { mealTypeOptions } from "@/lib/meal-types";
 
 type SavedMealCardProps = {
   meal: SavedMeal;
@@ -27,10 +28,9 @@ export function SavedMealCard({ meal }: SavedMealCardProps) {
       <form action={logSavedMeal} className="mt-3 grid grid-cols-[1fr_auto] gap-2">
         <input name="savedMealId" type="hidden" value={meal.id} />
         <select className="field min-h-11 py-2 text-sm" name="mealType" required>
-          <option value="breakfast">Breakfast</option>
-          <option value="lunch">Lunch</option>
-          <option value="dinner">Dinner</option>
-          <option value="snack">Snack</option>
+          {mealTypeOptions.map((option) => (
+            <option key={option.value} value={option.value}>{option.label}</option>
+          ))}
         </select>
         <button className="min-h-11 rounded-md bg-mint px-3 text-sm font-semibold text-ink shadow-sm">
           Log

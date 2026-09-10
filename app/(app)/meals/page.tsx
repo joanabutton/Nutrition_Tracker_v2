@@ -1,21 +1,33 @@
 import { SavedMealForm } from "@/components/saved-meal-form";
 import { SavedMealManagementCard } from "@/components/saved-meal-management-card";
 import { getFoods } from "@/lib/foods";
+import { searchExternalFoods } from "@/lib/nutrition/external-foods";
+import { searchReferenceFoods } from "@/lib/reference-foods";
 import { getSavedMeals } from "@/lib/saved-meals";
 
 type MealsPageProps = {
   searchParams: Promise<{
     message?: string;
     query?: string;
+    foodQuery?: string;
   }>;
 };
 
 export default async function MealsPage({ searchParams }: MealsPageProps) {
-  const { message, query = "" } = await searchParams;
-  const [meals, foods] = await Promise.all([
+  const { message, query = "", foodQuery = "" } = await searchParams;
+  const trimmedFoodQuery = foodQuery.trim();
+  const [meals, foods, referenceResult, externalResult] = await Promise.all([
     getSavedMeals({ limit: query ? 50 : 20, query }),
-    getFoods({ limit: 100 })
+    getFoods({ limit: 100 }),
+    trimmedFoodQuery
+      ? searchReferenceFoods(trimmedFoodQuery)
+      : Promise.resolve({ foods: [], warnings: [] }),
+    trimmedFoodQuery
+      ? searchExternalFoods(trimmedFoodQuery)
+      : Promise.resolve({ foods: [], warnings: [] })
   ]);
+  const databaseFoods = [...referenceResult.foods, ...externalResult.foods];
+  const databaseWarnings = [...referenceResult.warnings, ...externalResult.warnings];
 
   return (
     <section className="grid gap-5">
@@ -32,7 +44,10 @@ export default async function MealsPage({ searchParams }: MealsPageProps) {
         </p>
       ) : null}
 
-      <details className="group rounded-lg bg-white/80 shadow-soft ring-1 ring-white/70">
+      <details
+        className="group rounded-lg bg-white/80 shadow-soft ring-1 ring-white/70"
+        open={Boolean(trimmedFoodQuery)}
+      >
         <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 px-4 text-lg font-semibold text-ink">
           Create saved meal
           <svg
@@ -47,7 +62,12 @@ export default async function MealsPage({ searchParams }: MealsPageProps) {
           </svg>
         </summary>
         <div className="border-t border-ink/10 p-4">
-          <SavedMealForm foods={foods} />
+          <SavedMealForm
+            databaseFoods={databaseFoods}
+            databaseWarnings={databaseWarnings}
+            foodQuery={foodQuery}
+            foods={foods}
+          />
         </div>
       </details>
 

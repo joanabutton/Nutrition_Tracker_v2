@@ -9,7 +9,9 @@ import { NutritionCylinder } from "@/components/nutrition-cylinder";
 import { SavedMealCard } from "@/components/saved-meal-card";
 import { UnifiedFoodLogForm } from "@/components/unified-food-log-form";
 import { getTodayDashboard } from "@/lib/dashboard";
+import { getAppTimeZone } from "@/lib/env";
 import { getFoods } from "@/lib/foods";
+import { mealTypeOptions } from "@/lib/meal-types";
 import { searchExternalFoods } from "@/lib/nutrition/external-foods";
 import { searchReferenceFoods } from "@/lib/reference-foods";
 import { getSavedMeals } from "@/lib/saved-meals";
@@ -23,14 +25,7 @@ type TodayPageProps = {
 
 type TodayDashboard = NonNullable<Awaited<ReturnType<typeof getTodayDashboard>>>;
 type TodayFoodLog = NonNullable<TodayDashboard["foodLogs"]>[number];
-type MealType = "breakfast" | "lunch" | "dinner" | "snack";
-
-const mealSections: Array<{ type: MealType; label: string }> = [
-  { type: "breakfast", label: "Breakfast" },
-  { type: "lunch", label: "Lunch" },
-  { type: "dinner", label: "Dinner" },
-  { type: "snack", label: "Snacks" }
-];
+const mealSections = mealTypeOptions;
 
 export default async function TodayPage({ searchParams }: TodayPageProps) {
   const { foodQuery = "", message } = await searchParams;
@@ -103,6 +98,7 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
           target={profile.calorie_target}
           unit="kcal"
           value={foodTotals.calories}
+          overageTone="pink"
         />
 
         <div className="grid grid-cols-3 gap-2">
@@ -112,6 +108,7 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
             target={profile.protein_target_g}
             unit="g"
             value={foodTotals.proteinG}
+            overageTone="purple"
           />
           <NutritionCylinder
             kind="target"
@@ -119,6 +116,7 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
             target={profile.carbohydrate_target_g}
             unit="g"
             value={foodTotals.carbohydrateG}
+            overageTone="purple"
           />
           <NutritionCylinder
             kind="target"
@@ -126,6 +124,7 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
             target={profile.fat_target_g}
             unit="g"
             value={foodTotals.fatG}
+            overageTone="purple"
           />
           <NutritionCylinder
             kind="limit"
@@ -133,6 +132,7 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
             target={profile.saturated_fat_limit_g}
             unit="g"
             value={foodTotals.saturatedFatG}
+            overageTone="pink"
           />
           <NutritionCylinder
             kind="target"
@@ -140,6 +140,7 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
             target={profile.fibre_target_g}
             unit="g"
             value={foodTotals.fibreG}
+            overageTone="purple"
           />
           <NutritionCylinder
             kind="limit"
@@ -147,6 +148,7 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
             target={profile.added_sugar_limit_g}
             unit="g"
             value={foodTotals.addedSugarG}
+            overageTone="purple"
           />
         </div>
       </section>
@@ -196,22 +198,34 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
         <SectionHeader title="Meals" count={dashboard.foodLogs.length} />
         {dashboard.foodLogs.length > 0 ? (
           <div className="grid gap-3">
-            {groupFoodLogsByMeal(dashboard.foodLogs).map(({ label, logs, calories }) => (
-              <div className="grid gap-2" key={label}>
-                <div className="flex items-center justify-between gap-3">
-                  <h4 className="text-sm font-semibold text-ink">
-                    {label} · {Math.round(calories)} kcal
-                  </h4>
-                  <span className="text-xs font-semibold text-ink/45">
-                    {logs.length} {logs.length === 1 ? "item" : "items"}
-                  </span>
-                </div>
-                <div className="grid gap-2">
+            {groupFoodLogsByMeal(dashboard.foodLogs).map(({ label, logs, calories, firstLoggedAt }) => (
+              <details className="group rounded-md border border-white/70 bg-white/60 px-3 py-2" key={label}>
+                <summary className="flex min-h-9 cursor-pointer list-none items-center justify-between gap-3">
+                  <div>
+                    <h4 className="text-sm font-semibold text-ink">
+                      {label} · {Math.round(calories)} kcal
+                    </h4>
+                    <p className="mt-0.5 text-xs text-ink/55">
+                      First logged {formatLoggedTime(firstLoggedAt)}
+                    </p>
+                  </div>
+                  <svg
+                    aria-hidden="true"
+                    className="size-4 shrink-0 text-ink/55 transition-transform group-open:rotate-180"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    viewBox="0 0 24 24"
+                  >
+                    <path d="m6 9 6 6 6-6" />
+                  </svg>
+                </summary>
+                <div className="hidden gap-2 border-t border-ink/10 pt-3 group-open:grid">
                   {logs.map((log) => (
                     <FoodLogCard key={log.id} log={log} />
                   ))}
                 </div>
-              </div>
+              </details>
             ))}
           </div>
         ) : (
@@ -280,15 +294,27 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
 
 function groupFoodLogsByMeal(foodLogs: TodayFoodLog[]) {
   return mealSections
-    .map(({ type, label }) => ({
+    .map(({ value: type, label }) => ({
       label,
       logs: foodLogs.filter((log) => log.meal_type === type)
     }))
     .map((section) => ({
       ...section,
-      calories: section.logs.reduce((total, log) => total + Number(log.calories), 0)
+      calories: section.logs.reduce((total, log) => total + Number(log.calories), 0),
+      firstLoggedAt: section.logs.reduce(
+        (first, log) => (new Date(log.logged_at) < new Date(first) ? log.logged_at : first),
+        section.logs[0].logged_at
+      )
     }))
     .filter((section) => section.logs.length > 0);
+}
+
+function formatLoggedTime(value: string) {
+  return new Intl.DateTimeFormat("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: getAppTimeZone()
+  }).format(new Date(value));
 }
 
 function SectionHeader({ title, count }: { title: string; count: number }) {

@@ -13,6 +13,7 @@ import {
 } from "@/lib/nutrition/external-foods";
 import { scaleFoodNutrition, type FoodNutrition } from "@/lib/nutrition/food";
 import { type ParsedFoodLog } from "@/lib/ai/food-parser";
+import { isMealType, type MealType } from "@/lib/meal-types";
 import { getFoods, type FoodRecord } from "@/lib/foods";
 import {
   getReferenceFoodCandidate,
@@ -60,7 +61,7 @@ type FoodResolution =
 
 export type ConversationalFoodDraft = {
   originalText: string;
-  mealType: "breakfast" | "lunch" | "dinner" | "snack";
+  mealType: MealType;
   items: ConversationalFoodDraftItem[];
 };
 
@@ -689,8 +690,4 @@ function readNonNegativeNumber(value: unknown, label: string) {
   }
 
   return parsed;
-}
-
-function isMealType(value: unknown): value is ConversationalFoodDraft["mealType"] {
-  return value === "breakfast" || value === "lunch" || value === "dinner" || value === "snack";
 }

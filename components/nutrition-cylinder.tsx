@@ -6,12 +6,20 @@ type NutritionCylinderProps = {
   target: number;
   unit: string;
   kind: CylinderKind;
+  overageTone: "pink" | "purple";
 };
 
-export function NutritionCylinder({ label, value, target, unit, kind }: NutritionCylinderProps) {
+export function NutritionCylinder({
+  label,
+  value,
+  target,
+  unit,
+  kind,
+  overageTone
+}: NutritionCylinderProps) {
   const ratio = target > 0 ? value / target : 0;
   const fillPercentage = Math.max(0, Math.min(ratio, 1.15)) * 100;
-  const isOverLimit = kind === "limit" && ratio > 1;
+  const isOverTarget = ratio > 1;
   const isCalories = kind === "calories";
 
   return (
@@ -36,11 +44,11 @@ export function NutritionCylinder({ label, value, target, unit, kind }: Nutritio
           <div
             className={[
               "absolute inset-x-0 bottom-0 transition-all duration-500",
-              isOverLimit
-                ? "bg-gradient-to-t from-tomato to-rose"
-                : kind === "target"
-                  ? "bg-gradient-to-t from-blue to-aqua"
-                  : "bg-gradient-to-t from-moss to-mint"
+              isOverTarget
+                ? overageTone === "pink"
+                  ? "bg-gradient-to-t from-tomato to-rose"
+                  : "bg-gradient-to-t from-lilac to-lilac/70"
+                : "bg-gradient-to-t from-blue to-aqua"
             ].join(" ")}
             style={{ height: `${fillPercentage}%` }}
           >

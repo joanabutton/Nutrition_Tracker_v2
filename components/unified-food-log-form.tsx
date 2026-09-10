@@ -6,6 +6,7 @@ import { logSelectedFood } from "@/app/(app)/food-actions";
 import { type FoodRecord } from "@/lib/foods";
 import { type ExternalFoodCandidate } from "@/lib/nutrition/external-foods";
 import { getExternalFoodSourceLabel } from "@/lib/nutrition/food";
+import { mealTypeOptions } from "@/lib/meal-types";
 
 type UnifiedFoodLogFormProps = {
   query: string;
@@ -112,10 +113,9 @@ export function UnifiedFoodLogForm({
               <label className="grid gap-2 text-sm font-semibold text-ink">
                 Meal
                 <select className="field" name="mealType" required>
-                  <option value="breakfast">Breakfast</option>
-                  <option value="lunch">Lunch</option>
-                  <option value="dinner">Dinner</option>
-                  <option value="snack">Snack</option>
+                  {mealTypeOptions.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
                 </select>
               </label>
             </div>

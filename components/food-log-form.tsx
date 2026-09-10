@@ -4,6 +4,7 @@ import { useId, useMemo, useState } from "react";
 
 import { logFood } from "@/app/(app)/food-actions";
 import { type FoodRecord } from "@/lib/foods";
+import { mealTypeOptions } from "@/lib/meal-types";
 
 type FoodLogFormProps = {
   foods: FoodRecord[];
@@ -100,10 +101,9 @@ export function FoodLogForm({
         <label className="grid gap-2 text-sm font-semibold text-ink">
           Meal
           <select className="field" disabled={foods.length === 0} name="mealType" required>
-            <option value="breakfast">Breakfast</option>
-            <option value="lunch">Lunch</option>
-            <option value="dinner">Dinner</option>
-            <option value="snack">Snack</option>
+            {mealTypeOptions.map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
           </select>
         </label>
       </div>

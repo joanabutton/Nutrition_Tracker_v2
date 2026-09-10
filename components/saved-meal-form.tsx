@@ -2,11 +2,20 @@
 
 import { useId, useMemo, useState } from "react";
 
-import { createSavedMeal, updateSavedMeal } from "@/app/(app)/food-actions";
+import {
+  createSavedMeal,
+  saveExternalFoodForSavedMeal,
+  updateSavedMeal
+} from "@/app/(app)/food-actions";
 import { type FoodRecord } from "@/lib/foods";
+import { type ExternalFoodCandidate } from "@/lib/nutrition/external-foods";
+import { getExternalFoodSourceLabel } from "@/lib/nutrition/food";
 import { type SavedMeal } from "@/lib/saved-meals";
 
 type SavedMealFormProps = {
+  databaseFoods?: ExternalFoodCandidate[];
+  databaseWarnings?: string[];
+  foodQuery?: string;
   foods: FoodRecord[];
   meal?: SavedMeal;
 };
@@ -21,7 +30,13 @@ type MealFoodRow = {
   unit: string;
 };
 
-export function SavedMealForm({ foods, meal }: SavedMealFormProps) {
+export function SavedMealForm({
+  databaseFoods = [],
+  databaseWarnings = [],
+  foodQuery = "",
+  foods,
+  meal
+}: SavedMealFormProps) {
   const listId = useId();
   const initialRows = useMemo(
     () =>
@@ -43,23 +58,94 @@ export function SavedMealForm({ foods, meal }: SavedMealFormProps) {
     label: formatFoodOption(food)
   })), [foods]);
   const action = meal ? updateSavedMeal : createSavedMeal;
-  const formClassName = meal
-    ? "grid gap-3"
-    : "grid gap-3 rounded-lg bg-white/80 p-4 shadow-soft ring-1 ring-white/70";
+  const formClassName = "grid gap-3";
 
   return (
-    <form action={action} className={formClassName}>
+    <div className="grid gap-4">
       {!meal ? (
-        <div>
-          <p className="text-sm leading-6 text-ink/60">
-            Build a reusable meal from foods you have already saved.
-          </p>
-        </div>
+        <section className="grid gap-3 rounded-md bg-white/60 p-3">
+          <div>
+            <h3 className="text-sm font-semibold text-ink">Find a food for this meal</h3>
+            <p className="mt-1 text-sm leading-6 text-ink/60">
+              Search your reference and external food databases, then add the match to your foods.
+            </p>
+          </div>
+
+          <form action="/meals" className="grid gap-2">
+            <label className="grid gap-2 text-sm font-semibold text-ink">
+              Search databases
+              <input
+                className="field"
+                defaultValue={foodQuery}
+                name="foodQuery"
+                placeholder="oats, yoghurt, cereal"
+                required
+                type="search"
+              />
+            </label>
+            <button className="min-h-11 rounded-md bg-mint px-3 text-sm font-semibold text-ink shadow-sm">
+              Search foods
+            </button>
+          </form>
+
+          {databaseWarnings.map((warning) => (
+            <p
+              className="rounded-md border border-butter/70 bg-butter/35 px-3 py-2 text-sm text-ink/70"
+              key={warning}
+            >
+              {warning}
+            </p>
+          ))}
+
+          {foodQuery && databaseFoods.length === 0 ? (
+            <p className="rounded-md border border-dashed border-ink/15 bg-white/65 px-3 py-3 text-sm text-ink/60">
+              No database matches found. Try a simpler search, or save the food manually first.
+            </p>
+          ) : null}
+
+          {databaseFoods.length > 0 ? (
+            <div className="grid gap-2">
+              {databaseFoods.map((food) => (
+                <article
+                  className="rounded-md border border-white/70 bg-white/75 p-3"
+                  key={`${food.externalSource}:${food.externalSourceId}`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <h4 className="text-sm font-semibold text-ink">{food.name}</h4>
+                      <p className="mt-1 text-xs text-ink/55">
+                        {food.brand ? `${food.brand} · ` : ""}
+                        {getExternalFoodSourceLabel(food.externalSource)}
+                      </p>
+                    </div>
+                    <p className="shrink-0 text-sm font-semibold text-ink">
+                      {Math.round(food.calories)} kcal
+                    </p>
+                  </div>
+                  <p className="mt-2 text-xs text-ink/60">
+                    Per {food.servingQuantity}{food.servingUnit}: P {Math.round(food.proteinG)}g · C{" "}
+                    {Math.round(food.carbohydrateG)}g · F {Math.round(food.fatG)}g
+                  </p>
+                  <form action={saveExternalFoodForSavedMeal} className="mt-3">
+                    <input name="externalSource" type="hidden" value={food.externalSource} />
+                    <input name="externalSourceId" type="hidden" value={food.externalSourceId} />
+                    <input name="foodQuery" type="hidden" value={foodQuery} />
+                    <button className="min-h-10 w-full rounded-md bg-white px-3 text-sm font-semibold text-ink shadow-sm ring-1 ring-ink/10">
+                      Add to my foods
+                    </button>
+                  </form>
+                </article>
+              ))}
+            </div>
+          ) : null}
+        </section>
       ) : null}
 
-      {meal ? <input name="savedMealId" type="hidden" value={meal.id} /> : null}
+      <form action={action} className={formClassName}>
 
-      <label className="grid gap-2 text-sm font-semibold text-ink">
+        {meal ? <input name="savedMealId" type="hidden" value={meal.id} /> : null}
+
+        <label className="grid gap-2 text-sm font-semibold text-ink">
         Meal name
         <input
           className="field"
@@ -68,9 +154,9 @@ export function SavedMealForm({ foods, meal }: SavedMealFormProps) {
           placeholder="Usual breakfast"
           required
         />
-      </label>
+        </label>
 
-      <label className="grid gap-2 text-sm font-semibold text-ink">
+        <label className="grid gap-2 text-sm font-semibold text-ink">
         Aliases
         <input
           className="field"
@@ -78,16 +164,16 @@ export function SavedMealForm({ foods, meal }: SavedMealFormProps) {
           name="aliases"
           placeholder="porridge, my breakfast"
         />
-      </label>
+        </label>
 
-      <input name="itemCount" type="hidden" value={rows.length} />
-      <datalist id={listId}>
-        {foodOptions.map(({ food, label }) => (
-          <option key={food.id} value={label} />
-        ))}
-      </datalist>
+        <input name="itemCount" type="hidden" value={rows.length} />
+        <datalist id={listId}>
+          {foodOptions.map(({ food, label }) => (
+            <option key={food.id} value={label} />
+          ))}
+        </datalist>
 
-      <div className="grid gap-3">
+        <div className="grid gap-3">
         {rows.map((row, index) => (
           <div className="grid gap-2 rounded-md border border-white/70 bg-white/60 p-3" key={row.id}>
             <input name={`foodId_${index}`} type="hidden" value={row.foodId} />
@@ -143,23 +229,24 @@ export function SavedMealForm({ foods, meal }: SavedMealFormProps) {
             </div>
           </div>
         ))}
-      </div>
+        </div>
 
-      <button
+        <button
         className="min-h-11 rounded-md border border-white/70 bg-white/75 px-4 text-sm font-semibold text-ink shadow-sm"
         onClick={addFoodRow}
         type="button"
-      >
-        Add food
-      </button>
+        >
+          Add food
+        </button>
 
-      <button
+        <button
         className="min-h-12 rounded-md bg-gradient-to-r from-rose via-lilac to-aqua px-4 text-base font-semibold text-ink shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
         disabled={foods.length === 0}
-      >
-        {meal ? "Update meal" : "Save meal"}
-      </button>
-    </form>
+        >
+          {meal ? "Update meal" : "Save meal"}
+        </button>
+      </form>
+    </div>
   );
 
   function addFoodRow() {
