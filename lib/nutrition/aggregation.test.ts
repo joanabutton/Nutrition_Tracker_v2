@@ -4,6 +4,7 @@ import {
   aggregateExerciseCalories,
   aggregateFoodLogs,
   calculateCalorieAllowance,
+  calculateExerciseAdjustedMacroTarget,
   calculateExerciseAdjustment,
   calculateRemainingCalories
 } from "@/lib/nutrition/aggregation";
@@ -50,6 +51,13 @@ describe("daily nutrition aggregation", () => {
     expect(calculateExerciseAdjustment(250, 50)).toBe(125);
     expect(calculateExerciseAdjustment(250, 100)).toBe(250);
     expect(calculateCalorieAllowance(1800, 250)).toBe(2050);
+  });
+
+  it("increases macro targets by the same proportion as eaten-back exercise calories", () => {
+    expect(calculateExerciseAdjustedMacroTarget(120, 2000, 200)).toBe(132);
+    expect(calculateExerciseAdjustedMacroTarget(240, 2000, 200)).toBe(264);
+    expect(calculateExerciseAdjustedMacroTarget(0, 2000, 200)).toBe(0);
+    expect(calculateExerciseAdjustedMacroTarget(120, 0, 200)).toBe(120);
   });
 
   it("calculates remaining calories with exercise adjustment", () => {

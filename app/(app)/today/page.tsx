@@ -46,7 +46,7 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
     redirect("/onboarding");
   }
 
-  const { profile, foodTotals } = dashboard;
+  const { profile, foodTotals, exerciseAdjustedMacroTargets } = dashboard;
   const databaseFoods = [...referenceResult.foods, ...externalResult.foods];
 
   return (
@@ -105,7 +105,7 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
           <NutritionCylinder
             kind="target"
             label="Protein"
-            target={profile.protein_target_g}
+            target={exerciseAdjustedMacroTargets.proteinG}
             unit="g"
             value={foodTotals.proteinG}
             overageTone="purple"
@@ -113,7 +113,7 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
           <NutritionCylinder
             kind="target"
             label="Carbs"
-            target={profile.carbohydrate_target_g}
+            target={exerciseAdjustedMacroTargets.carbohydrateG}
             unit="g"
             value={foodTotals.carbohydrateG}
             overageTone="purple"
@@ -121,7 +121,7 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
           <NutritionCylinder
             kind="target"
             label="Fat"
-            target={profile.fat_target_g}
+            target={exerciseAdjustedMacroTargets.fatG}
             unit="g"
             value={foodTotals.fatG}
             overageTone="purple"

@@ -2,6 +2,7 @@ import {
   aggregateExerciseCalories,
   aggregateFoodLogs,
   calculateCalorieAllowance,
+  calculateExerciseAdjustedMacroTarget,
   calculateExerciseAdjustment,
   calculateRemainingCalories
 } from "@/lib/nutrition/aggregation";
@@ -86,6 +87,23 @@ export async function getTodayDashboard() {
     foodTotals.calories,
     exerciseAdjustment
   );
+  const exerciseAdjustedMacroTargets = {
+    proteinG: calculateExerciseAdjustedMacroTarget(
+      Number(profile.protein_target_g),
+      Number(profile.calorie_target),
+      exerciseAdjustment
+    ),
+    carbohydrateG: calculateExerciseAdjustedMacroTarget(
+      Number(profile.carbohydrate_target_g),
+      Number(profile.calorie_target),
+      exerciseAdjustment
+    ),
+    fatG: calculateExerciseAdjustedMacroTarget(
+      Number(profile.fat_target_g),
+      Number(profile.calorie_target),
+      exerciseAdjustment
+    )
+  };
 
   return {
     profile,
@@ -98,6 +116,7 @@ export async function getTodayDashboard() {
     exerciseCalories,
     exerciseAdjustment,
     calorieAllowance,
+    exerciseAdjustedMacroTargets,
     remainingCalories,
     weightTrend
   };

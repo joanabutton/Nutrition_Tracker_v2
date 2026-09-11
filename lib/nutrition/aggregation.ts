@@ -62,6 +62,18 @@ export function calculateCalorieAllowance(calorieTarget: number, exerciseAdjustm
   return Math.round(calorieTarget + exerciseAdjustment);
 }
 
+export function calculateExerciseAdjustedMacroTarget(
+  macroTarget: number,
+  calorieTarget: number,
+  exerciseAdjustment: number
+) {
+  if (calorieTarget <= 0) {
+    return Math.round(macroTarget);
+  }
+
+  return Math.round(macroTarget * ((calorieTarget + exerciseAdjustment) / calorieTarget));
+}
+
 export function calculateRemainingCalories(
   calorieTarget: number,
   consumedCalories: number,
