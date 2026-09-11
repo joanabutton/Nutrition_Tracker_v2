@@ -95,7 +95,7 @@ export default async function TodayPage({ searchParams }: TodayPageProps) {
         <NutritionCylinder
           kind="calories"
           label="Calories"
-          target={profile.calorie_target}
+          target={dashboard.calorieAllowance}
           unit="kcal"
           value={foodTotals.calories}
           overageTone="pink"

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   aggregateExerciseCalories,
   aggregateFoodLogs,
+  calculateCalorieAllowance,
   calculateExerciseAdjustment,
   calculateRemainingCalories
 } from "@/lib/nutrition/aggregation";
@@ -48,6 +49,7 @@ describe("daily nutrition aggregation", () => {
     expect(calculateExerciseAdjustment(250, 0)).toBe(0);
     expect(calculateExerciseAdjustment(250, 50)).toBe(125);
     expect(calculateExerciseAdjustment(250, 100)).toBe(250);
+    expect(calculateCalorieAllowance(1800, 250)).toBe(2050);
   });
 
   it("calculates remaining calories with exercise adjustment", () => {

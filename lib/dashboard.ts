@@ -1,6 +1,7 @@
 import {
   aggregateExerciseCalories,
   aggregateFoodLogs,
+  calculateCalorieAllowance,
   calculateExerciseAdjustment,
   calculateRemainingCalories
 } from "@/lib/nutrition/aggregation";
@@ -76,6 +77,10 @@ export async function getTodayDashboard() {
     exerciseCalories,
     profile.exercise_eat_back_percentage
   );
+  const calorieAllowance = calculateCalorieAllowance(
+    Number(profile.calorie_target),
+    exerciseAdjustment
+  );
   const remainingCalories = calculateRemainingCalories(
     Number(profile.calorie_target),
     foodTotals.calories,
@@ -92,6 +97,7 @@ export async function getTodayDashboard() {
     foodTotals,
     exerciseCalories,
     exerciseAdjustment,
+    calorieAllowance,
     remainingCalories,
     weightTrend
   };

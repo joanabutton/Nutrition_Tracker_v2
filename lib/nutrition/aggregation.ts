@@ -58,6 +58,10 @@ export function calculateExerciseAdjustment(
   return Math.round(exerciseCalories * (eatBackPercentage / 100));
 }
 
+export function calculateCalorieAllowance(calorieTarget: number, exerciseAdjustment: number) {
+  return Math.round(calorieTarget + exerciseAdjustment);
+}
+
 export function calculateRemainingCalories(
   calorieTarget: number,
   consumedCalories: number,
