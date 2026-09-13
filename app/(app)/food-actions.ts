@@ -76,8 +76,10 @@ export async function confirmConversationalFoodLog(formData: FormData) {
   const supabase = await createClient();
   const user = await requireUser(supabase);
   let draft: ConversationalFoodDraft;
+  let submissionId: string | null;
 
   try {
+    submissionId = readOptionalSubmissionId(formData);
     draft = decodeDraft(readRequiredString(formData, "draft"));
     draft = applyDraftMatchSelections(draft, readDraftMatchSelections(formData, draft.items.length));
     draft = applyDraftEdits(draft, formData);
@@ -163,7 +165,11 @@ export async function confirmConversationalFoodLog(formData: FormData) {
       })
     );
 
-    const { error } = await supabase.from("food_logs").insert(preparedItems.map((item) => item.row));
+    const { error } = await insertFoodLogs(
+      supabase,
+      preparedItems.map((item) => item.row),
+      submissionId
+    );
 
     if (error) {
       throw new Error(error.message);
@@ -332,11 +338,13 @@ export async function deleteFood(formData: FormData) {
 export async function logFood(formData: FormData) {
   const supabase = await createClient();
   const user = await requireUser(supabase);
+  let submissionId: string | null;
   let foodId: string;
   let quantity: number;
   let mealType: MealType;
 
   try {
+    submissionId = readOptionalSubmissionId(formData);
     foodId = readRequiredString(formData, "foodId");
     quantity = readPositiveNumber(formData, "quantity");
     mealType = readMealType(formData);
@@ -368,7 +376,7 @@ export async function logFood(formData: FormData) {
     redirectWithMessage("/today", getErrorMessage(error));
   }
 
-  const { error } = await supabase.from("food_logs").insert({
+  const { error } = await insertFoodLogs(supabase, [{
     user_id: user.id,
     meal_type: mealType,
     food_id: food.id,
@@ -377,7 +385,7 @@ export async function logFood(formData: FormData) {
     unit: food.serving_unit,
     nutrition_source: food.source,
     ...nutrition
-  });
+  }], submissionId);
 
   if (error) {
     redirectWithMessage("/today", error.message);
@@ -390,11 +398,13 @@ export async function logFood(formData: FormData) {
 export async function logSelectedFood(formData: FormData) {
   const supabase = await createClient();
   const user = await requireUser(supabase);
+  let submissionId: string | null;
   let quantity: number;
   let mealType: MealType;
   let match: FoodMatchSelection;
 
   try {
+    submissionId = readOptionalSubmissionId(formData);
     match = readFoodMatchSelection(formData);
     quantity = readPositiveNumber(formData, "quantity");
     mealType = readMealType(formData);
@@ -418,7 +428,7 @@ export async function logSelectedFood(formData: FormData) {
     }
 
     const nutrition = scaleFoodNutrition(food, quantity);
-    const { error } = await supabase.from("food_logs").insert({
+    const { error } = await insertFoodLogs(supabase, [{
       user_id: user.id,
       meal_type: mealType,
       food_id: food.id,
@@ -427,7 +437,7 @@ export async function logSelectedFood(formData: FormData) {
       unit: food.serving_unit,
       nutrition_source: food.source,
       ...nutrition
-    });
+    }], submissionId);
 
     if (error) {
       throw new Error(error.message);
@@ -454,10 +464,12 @@ type FoodMatchSelection =
 export async function logSavedMeal(formData: FormData) {
   const supabase = await createClient();
   const user = await requireUser(supabase);
+  let submissionId: string | null;
   let savedMealId: string;
   let mealType: MealType;
 
   try {
+    submissionId = readOptionalSubmissionId(formData);
     savedMealId = readRequiredString(formData, "savedMealId");
     mealType = readMealType(formData);
   } catch (error) {
@@ -482,7 +494,7 @@ export async function logSavedMeal(formData: FormData) {
       ...item.nutrition
     }));
 
-    const { error } = await supabase.from("food_logs").insert(rows);
+    const { error } = await insertFoodLogs(supabase, rows, submissionId);
 
     if (error) {
       throw new Error(error.message);
@@ -690,6 +702,24 @@ function revalidateFoodPaths() {
   revalidatePath("/today");
   revalidatePath("/foods");
   revalidatePath("/meals");
+}
+
+async function insertFoodLogs(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  rows: Array<Record<string, string | number | null>>,
+  submissionId: string | null
+) {
+  return supabase.from("food_logs").upsert(
+    rows.map((row, index) => ({
+      ...row,
+      submission_id: submissionId,
+      submission_item_index: submissionId ? index : null
+    })),
+    {
+      onConflict: "user_id,submission_id,submission_item_index",
+      ignoreDuplicates: true
+    }
+  );
 }
 
 async function getFoodForLogging(
@@ -1047,6 +1077,20 @@ function readRequiredString(formData: FormData, key: string) {
 function readOptionalString(formData: FormData, key: string) {
   const value = String(formData.get(key) ?? "").trim();
   return value || null;
+}
+
+function readOptionalSubmissionId(formData: FormData) {
+  const value = readOptionalString(formData, "submissionId");
+
+  if (value === null) {
+    return null;
+  }
+
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)) {
+    throw new Error("submissionId is invalid.");
+  }
+
+  return value;
 }
 
 function readPositiveNumber(formData: FormData, key: string) {

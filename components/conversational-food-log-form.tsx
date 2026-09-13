@@ -7,6 +7,7 @@ import {
   parseConversationalFoodLog,
   type ConversationalFoodLogState
 } from "@/app/(app)/food-actions";
+import { FoodSubmitButton } from "@/components/food-submit-button";
 import { getExternalFoodSourceLabel } from "@/lib/nutrition/food";
 import { mealTypeOptions } from "@/lib/meal-types";
 
@@ -304,12 +305,13 @@ export function ConversationalFoodLogForm({ embedded = false }: ConversationalFo
             </label>
           </div>
 
-          <button
+          <FoodSubmitButton
             className="min-h-12 rounded-md bg-mint px-4 text-base font-semibold text-ink shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
             disabled={!canConfirmDraft}
+            pendingLabel="Adding..."
           >
             Add foods
-          </button>
+          </FoodSubmitButton>
         </form>
       ) : null}
     </section>

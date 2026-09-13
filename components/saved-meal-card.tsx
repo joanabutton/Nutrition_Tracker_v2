@@ -1,4 +1,5 @@
 import { logSavedMeal } from "@/app/(app)/food-actions";
+import { FoodSubmitButton } from "@/components/food-submit-button";
 import { type SavedMeal } from "@/lib/saved-meals";
 import { mealTypeOptions } from "@/lib/meal-types";
 
@@ -32,9 +33,12 @@ export function SavedMealCard({ meal }: SavedMealCardProps) {
             <option key={option.value} value={option.value}>{option.label}</option>
           ))}
         </select>
-        <button className="min-h-11 rounded-md bg-mint px-3 text-sm font-semibold text-ink shadow-sm">
+        <FoodSubmitButton
+          className="min-h-11 rounded-md bg-mint px-3 text-sm font-semibold text-ink shadow-sm disabled:cursor-wait disabled:opacity-60"
+          pendingLabel="Logging..."
+        >
           Log
-        </button>
+        </FoodSubmitButton>
       </form>
     </article>
   );

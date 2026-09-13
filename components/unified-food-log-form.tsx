@@ -7,6 +7,7 @@ import { type FoodRecord } from "@/lib/foods";
 import { type ExternalFoodCandidate } from "@/lib/nutrition/external-foods";
 import { getExternalFoodSourceLabel } from "@/lib/nutrition/food";
 import { mealTypeOptions } from "@/lib/meal-types";
+import { FoodSubmitButton } from "@/components/food-submit-button";
 
 type UnifiedFoodLogFormProps = {
   query: string;
@@ -120,9 +121,12 @@ export function UnifiedFoodLogForm({
               </label>
             </div>
 
-            <button className="min-h-12 rounded-md bg-mint px-4 text-base font-semibold text-ink shadow-sm">
+            <FoodSubmitButton
+              className="min-h-12 rounded-md bg-mint px-4 text-base font-semibold text-ink shadow-sm disabled:cursor-wait disabled:opacity-60"
+              pendingLabel="Adding..."
+            >
               Add to today
-            </button>
+            </FoodSubmitButton>
           </form>
         ) : (
           <div className="rounded-md border border-dashed border-ink/15 bg-white/60 px-4 py-5">

@@ -3,6 +3,7 @@
 import { useId, useMemo, useState } from "react";
 
 import { logFood } from "@/app/(app)/food-actions";
+import { FoodSubmitButton } from "@/components/food-submit-button";
 import { type FoodRecord } from "@/lib/foods";
 import { mealTypeOptions } from "@/lib/meal-types";
 
@@ -109,12 +110,13 @@ export function FoodLogForm({
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <button
+        <FoodSubmitButton
           className="min-h-12 rounded-md bg-gradient-to-r from-rose via-lilac to-aqua px-4 text-base font-semibold text-ink shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
           disabled={foods.length === 0 || !selectedFood}
+          pendingLabel="Adding..."
         >
           Add to today
-        </button>
+        </FoodSubmitButton>
         <button
           className="min-h-12 rounded-md border border-white/70 bg-white/75 px-4 text-base font-semibold text-ink/70 shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
           disabled={!foodSearch.trim()}
